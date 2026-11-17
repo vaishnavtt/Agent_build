@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentforge.ai/schemas/workflow.schema.json",
+  "title": "AgentForgeWorkflow",
+  "description": "Standard schema for AgentForge AI executable visual workflows",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "metadata",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "enum": ["1.0.0"],
+      "description": "The specification version of this workflow schema"
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["id", "name", "createdAt", "updatedAt"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique identifier for the workflow"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Human-readable workflow name"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Summary of workflow purpose and behavior"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "default": "1.0.0",
+          "description": "Semantic versioning for workflow revisions"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Categorization tags"
+        },
+        "author": {
+          "type": "string",
+          "description": "Creator identifier or team member"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "description": "Workflow-level environment and execution configuration",
+      "properties": {
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600,
+          "default": 300
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "default": 2
+        },
+        "autoRepairEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether AI self-repair is triggered upon execution failure"
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": ["sequential", "dag", "langgraph"],
+          "default": "langgraph"
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "description": "Collection of workflow steps / nodes",
+      "items": {
+        "$ref": "#/$defs/workflowNode"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Connections routing data and control flow between nodes",
+      "items": {
+        "$ref": "#/$defs/workflowEdge"
+      }
+    }
+  },
+  "$defs": {
+    "nodeType": {
+      "type": "string",
+      "enum": [
+        "Input",
+        "LLM",
+        "Document Reader",
+        "Tool",
+        "Condition",
+        "Human Approval",
+        "Output"
+      ],
+      "description": "Allowed visual workflow node types in AgentForge AI"
+    },
+    "nodePosition": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "workflowNode": {
+      "type": "object",
+      "required": ["id", "type", "name", "position", "config"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this node within the workflow"
+        },
+        "type": {
+          "$ref": "#/$defs/nodeType"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display label for the node"
+        },
+        "position": {
+          "$ref": "#/$defs/nodePosition"
+        },
+        "config": {
+          "type": "object",
+          "description": "Node-specific configuration parameters",
+          "additionalProperties": true
+        },
+        "inputHandles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "outputHandles": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "workflowEdge": {
+      "type": "object",
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the edge"
+        },
+        "source": {
+          "type": "string",
+          "description": "ID of the source node"
+        },
+        "target": {
+          "type": "string",
+          "description": "ID of the target node"
+        },
+        "sourceHandle": {
+          "type": "string",
+          "description": "Optional identifier of the specific source port/handle"
+        },
+        "targetHandle": {
+          "type": "string",
+          "description": "Optional identifier of the specific target port/handle"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Optional expression or branch tag (e.g. 'true', 'false', 'default')"
+        }
+      }
+    }
+  }
+}
+

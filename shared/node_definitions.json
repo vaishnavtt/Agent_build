@@ -1,0 +1,259 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-11-17T00:00:00Z",
+  "nodeTypes": [
+    {
+      "type": "Input",
+      "displayName": "Workflow Input",
+      "category": "IO",
+      "description": "Entry point for user input parameters, triggers, or payload data passed to start the workflow.",
+      "icon": "FileInput",
+      "defaultInputs": [],
+      "defaultOutputs": ["output"],
+      "defaultConfig": {
+        "inputType": "text",
+        "defaultValue": "",
+        "required": true,
+        "placeholder": "Enter initial prompt or JSON payload..."
+      },
+      "configFields": [
+        {
+          "name": "inputType",
+          "label": "Input Data Type",
+          "type": "select",
+          "options": ["text", "json", "file_url"],
+          "default": "text"
+        },
+        {
+          "name": "required",
+          "label": "Required",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "name": "placeholder",
+          "label": "Input Placeholder",
+          "type": "string",
+          "default": "Enter prompt or parameter"
+        }
+      ]
+    },
+    {
+      "type": "LLM",
+      "displayName": "AI Model (Gemini)",
+      "category": "AI",
+      "description": "Executes prompts and reasoning chains against Google Gemini models with variable temperature and system instructions.",
+      "icon": "Bot",
+      "defaultInputs": ["prompt", "context"],
+      "defaultOutputs": ["response", "tokens"],
+      "defaultConfig": {
+        "model": "gemini-1.5-pro",
+        "systemPrompt": "You are a helpful and precise assistant.",
+        "temperature": 0.7,
+        "maxOutputTokens": 2048,
+        "responseFormat": "text"
+      },
+      "configFields": [
+        {
+          "name": "model",
+          "label": "Model Variant",
+          "type": "select",
+          "options": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash-exp"],
+          "default": "gemini-1.5-pro"
+        },
+        {
+          "name": "systemPrompt",
+          "label": "System Instructions",
+          "type": "textarea",
+          "default": "You are a helpful assistant."
+        },
+        {
+          "name": "temperature",
+          "label": "Temperature (Creativity)",
+          "type": "slider",
+          "min": 0.0,
+          "max": 1.0,
+          "step": 0.1,
+          "default": 0.7
+        },
+        {
+          "name": "responseFormat",
+          "label": "Output Format",
+          "type": "select",
+          "options": ["text", "json_object"],
+          "default": "text"
+        }
+      ]
+    },
+    {
+      "type": "Document Reader",
+      "displayName": "Document Reader",
+      "category": "Data",
+      "description": "Extracts, parses, and chunks content from PDF, Markdown, DOCX, and plain text files for context ingestion.",
+      "icon": "FileText",
+      "defaultInputs": ["filePath"],
+      "defaultOutputs": ["content", "metadata"],
+      "defaultConfig": {
+        "chunkSize": 1000,
+        "chunkOverlap": 200,
+        "extractTables": false,
+        "supportedExtensions": [".pdf", ".txt", ".md", ".docx"]
+      },
+      "configFields": [
+        {
+          "name": "chunkSize",
+          "label": "Chunk Size (characters)",
+          "type": "number",
+          "default": 1000
+        },
+        {
+          "name": "chunkOverlap",
+          "label": "Chunk Overlap",
+          "type": "number",
+          "default": 200
+        },
+        {
+          "name": "extractTables",
+          "label": "Extract Tables",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "type": "Tool",
+      "displayName": "External Tool / API",
+      "category": "Action",
+      "description": "Calls external APIs, Python script utilities, or pre-registered tools to perform actions in the workflow.",
+      "icon": "Wrench",
+      "defaultInputs": ["params"],
+      "defaultOutputs": ["result", "error"],
+      "defaultConfig": {
+        "toolName": "web_search",
+        "method": "POST",
+        "endpoint": "",
+        "timeoutSeconds": 30
+      },
+      "configFields": [
+        {
+          "name": "toolName",
+          "label": "Tool Selection",
+          "type": "select",
+          "options": ["web_search", "python_interpreter", "http_request", "custom"],
+          "default": "web_search"
+        },
+        {
+          "name": "endpoint",
+          "label": "Endpoint URL (if HTTP)",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "timeoutSeconds",
+          "label": "Timeout (seconds)",
+          "type": "number",
+          "default": 30
+        }
+      ]
+    },
+    {
+      "type": "Condition",
+      "displayName": "Branching Condition",
+      "category": "Logic",
+      "description": "Evaluates expressions or boolean statements to split workflow execution into alternative paths.",
+      "icon": "GitFork",
+      "defaultInputs": ["input"],
+      "defaultOutputs": ["true", "false"],
+      "defaultConfig": {
+        "operator": "equals",
+        "leftOperand": "status",
+        "rightOperand": "success"
+      },
+      "configFields": [
+        {
+          "name": "operator",
+          "label": "Comparison Operator",
+          "type": "select",
+          "options": ["equals", "not_equals", "contains", "greater_than", "less_than", "regex_match"],
+          "default": "equals"
+        },
+        {
+          "name": "leftOperand",
+          "label": "Variable / Path",
+          "type": "string",
+          "default": "status"
+        },
+        {
+          "name": "rightOperand",
+          "label": "Target Value",
+          "type": "string",
+          "default": "success"
+        }
+      ]
+    },
+    {
+      "type": "Human Approval",
+      "displayName": "Human-in-the-Loop Approval",
+      "category": "Control",
+      "description": "Pauses workflow execution and generates an approval gate requiring human sign-off before proceeding.",
+      "icon": "UserCheck",
+      "defaultInputs": ["payload"],
+      "defaultOutputs": ["approved", "rejected"],
+      "defaultConfig": {
+        "timeoutMinutes": 60,
+        "defaultAction": "reject",
+        "promptMessage": "Please review and approve this step to continue."
+      },
+      "configFields": [
+        {
+          "name": "promptMessage",
+          "label": "Approval Message for Reviewer",
+          "type": "string",
+          "default": "Please review and approve this step to continue."
+        },
+        {
+          "name": "timeoutMinutes",
+          "label": "Timeout (minutes)",
+          "type": "number",
+          "default": 60
+        },
+        {
+          "name": "defaultAction",
+          "label": "Action on Timeout",
+          "type": "select",
+          "options": ["reject", "escalate", "proceed"],
+          "default": "reject"
+        }
+      ]
+    },
+    {
+      "type": "Output",
+      "displayName": "Workflow Output",
+      "category": "IO",
+      "description": "Terminal node aggregating final results, reports, or data artifacts delivered to the user or caller.",
+      "icon": "FileOutput",
+      "defaultInputs": ["input"],
+      "defaultOutputs": [],
+      "defaultConfig": {
+        "outputFormat": "markdown",
+        "includeExecutionMetrics": true
+      },
+      "configFields": [
+        {
+          "name": "outputFormat",
+          "label": "Result Presentation Format",
+          "type": "select",
+          "options": ["markdown", "json", "raw_text", "file_download"],
+          "default": "markdown"
+        },
+        {
+          "name": "includeExecutionMetrics",
+          "label": "Include Latency / Cost Metrics",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    }
+  ]
+}
+
