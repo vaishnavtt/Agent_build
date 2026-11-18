@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { RECENT_AGENTS, SAMPLE_TEMPLATES } from '../../data/mockData';
+import { LiquidButton } from '../common/LiquidButton';
 
 export const DashboardPage: React.FC = () => {
   const { setCurrentPage, generateAgentFromPrompt, loadTemplate, loadAgent } = useWorkflow();
@@ -66,21 +67,25 @@ export const DashboardPage: React.FC = () => {
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
+              <LiquidButton
+                variant="primary"
+                size="md"
                 onClick={handleCreateAgent}
-                className="px-5 py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center gap-2 group"
+                icon={<ArrowRight className="w-4 h-4" />}
+                iconPosition="right"
+                glow
               >
-                <span>Create Agent</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-              </button>
+                Create Agent
+              </LiquidButton>
 
-              <button
+              <LiquidButton
+                variant="secondary"
+                size="md"
                 onClick={() => setCurrentPage('templates')}
-                className="px-5 py-2.5 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] text-[#111111] text-xs sm:text-sm font-medium border border-[#E6E5E2] transition-colors flex items-center gap-2"
+                icon={<Boxes className="w-4 h-4 text-[#8D8D8D]" />}
               >
-                <Boxes className="w-4 h-4 text-[#8D8D8D]" />
-                <span>Explore Templates</span>
-              </button>
+                Explore Templates
+              </LiquidButton>
             </div>
 
             <span className="text-[11px] text-[#8D8D8D]">

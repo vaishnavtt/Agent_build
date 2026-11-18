@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { WorkflowNodeData } from '../../types';
+import { LiquidButton } from '../common/LiquidButton';
 
 export const ComponentSettings: React.FC = () => {
   const { selectedNode, setSelectedNode, updateNodeConfig, deleteNode, duplicateNode } = useWorkflow();
@@ -304,13 +305,15 @@ export const ComponentSettings: React.FC = () => {
 
       {/* Action Buttons in Footer */}
       <div className="p-4 border-t border-[#E6E5E2] bg-[#FFFFFF] space-y-2">
-        <button
+        <LiquidButton
+          variant="primary"
+          size="md"
           onClick={handleSave}
-          className="w-full py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-2"
+          className="w-full"
+          icon={<Save className="w-3.5 h-3.5" />}
         >
-          <Save className="w-3.5 h-3.5" />
-          <span>Save Settings</span>
-        </button>
+          Save Settings
+        </LiquidButton>
 
         <div className="grid grid-cols-2 gap-2">
           <button

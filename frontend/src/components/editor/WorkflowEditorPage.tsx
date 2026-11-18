@@ -28,6 +28,7 @@ import { ComponentSettings } from './ComponentSettings';
 import { EditorBottomPanel } from './EditorBottomPanel';
 import { CustomWorkflowNode } from './CustomWorkflowNode';
 import { ComponentType } from '../../types';
+import { LiquidButton } from '../common/LiquidButton';
 
 const WorkflowEditorContent: React.FC = () => {
   const {
@@ -192,33 +193,39 @@ const WorkflowEditorContent: React.FC = () => {
           </button>
 
           {/* Save Workflow */}
-          <button
+          <LiquidButton
+            variant="secondary"
+            size="sm"
             onClick={saveWorkflow}
-            className="px-3 py-1.5 rounded-full bg-[#FFFFFF] hover:bg-[#F1F0EE] text-[#111111] text-xs font-medium border border-[#E6E5E2] shadow-subtle transition-colors flex items-center gap-1.5"
+            icon={<Save className="w-3.5 h-3.5 text-[#8D8D8D]" />}
           >
-            <Save className="w-3.5 h-3.5 text-[#8D8D8D]" />
             <span className="hidden sm:inline">Save</span>
-          </button>
+          </LiquidButton>
 
           {/* Validate */}
-          <button
+          <LiquidButton
+            variant="secondary"
+            size="sm"
             onClick={() => runValidation()}
-            disabled={isValidating}
-            className="px-3.5 py-1.5 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] text-[#111111] text-xs font-semibold border border-[#E6E5E2] transition-colors flex items-center gap-1.5"
+            loading={isValidating}
+            loadingText="Checking..."
+            icon={<ShieldCheck className="w-3.5 h-3.5 text-[#B15F2C]" />}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#B15F2C]" />
-            <span>{isValidating ? 'Checking...' : 'Check Agent'}</span>
-          </button>
+            Check Agent
+          </LiquidButton>
 
           {/* Prominent Run Agent Button */}
-          <button
+          <LiquidButton
+            variant="primary"
+            size="sm"
             onClick={() => runAgentExecution()}
-            disabled={isExecuting}
-            className="px-4 py-1.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2 group"
+            loading={isExecuting}
+            loadingText="Running..."
+            icon={<Play className="w-3.5 h-3.5 fill-white" />}
+            glow
           >
-            <Play className="w-3.5 h-3.5 fill-white" />
-            <span>{isExecuting ? 'Running...' : 'Run Agent'}</span>
-          </button>
+            Run Agent
+          </LiquidButton>
         </div>
       </div>
 

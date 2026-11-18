@@ -106,3 +106,54 @@
 .animate-pulse-subtle {
   animation: pulseSubtle 2.5s infinite ease-in-out;
 }
+
+/* Liquid Button Keyframes & Fluid Optics */
+@keyframes liquidWave {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.8);
+    opacity: 0;
+  }
+}
+
+@keyframes liquidShimmer {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+@keyframes liquidGlowPulse {
+  0%, 100% {
+    box-shadow: 0 4px 16px -2px rgba(177, 95, 44, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  }
+  50% {
+    box-shadow: 0 8px 24px 0px rgba(177, 95, 44, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  }
+}
+
+.animate-liquid-ripple {
+  animation: liquidWave 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-liquid-shimmer {
+  animation: liquidShimmer 2.2s infinite ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-liquid-ripple,
+  .animate-liquid-shimmer,
+  .animate-pulse-subtle {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+

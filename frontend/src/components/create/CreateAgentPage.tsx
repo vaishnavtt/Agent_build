@@ -15,6 +15,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
+import { LiquidButton } from '../common/LiquidButton';
 
 export const CreateAgentPage: React.FC = () => {
   const {
@@ -142,23 +143,27 @@ export const CreateAgentPage: React.FC = () => {
         {/* Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div className="flex items-center gap-3">
-            <button
+            <LiquidButton
+              variant="primary"
+              size="md"
               onClick={handleGenerate}
-              disabled={isGenerating}
-              className="px-6 py-3 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] disabled:opacity-60 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center gap-2"
+              loading={isGenerating}
+              loadingText="Synthesizing Agent..."
+              icon={<Sparkles className="w-4 h-4" />}
+              glow
             >
-              <Sparkles className="w-4 h-4" />
-              <span>{isGenerating ? 'Synthesizing Agent...' : 'Generate Workflow'}</span>
-            </button>
+              Generate Workflow
+            </LiquidButton>
 
-            <button
+            <LiquidButton
+              variant="secondary"
+              size="md"
               onClick={handleClear}
               disabled={isGenerating || !prompt}
-              className="px-4 py-3 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] disabled:opacity-40 text-[#111111] text-xs sm:text-sm font-medium border border-[#E6E5E2] transition-colors flex items-center gap-1.5"
+              icon={<RotateCcw className="w-3.5 h-3.5 text-[#8D8D8D]" />}
             >
-              <RotateCcw className="w-3.5 h-3.5 text-[#8D8D8D]" />
-              <span>Clear</span>
-            </button>
+              Clear
+            </LiquidButton>
           </div>
 
           <button
@@ -247,20 +252,23 @@ export const CreateAgentPage: React.FC = () => {
                   <span className="text-xs text-[#8D8D8D]">{nodes.length} Components, {edges.length} Connections</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <LiquidButton
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setCurrentPage('validation')}
-                    className="px-4 py-2 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] text-[#111111] text-xs font-semibold border border-[#E6E5E2] transition-colors flex items-center gap-1.5"
+                    icon={<ShieldCheck className="w-3.5 h-3.5 text-[#B15F2C]" />}
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#B15F2C]" />
-                    <span>Check Agent</span>
-                  </button>
-                  <button
+                    Check Agent
+                  </LiquidButton>
+                  <LiquidButton
+                    variant="primary"
+                    size="sm"
                     onClick={() => setCurrentPage('editor')}
-                    className="px-5 py-2 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                    icon={<ArrowRight className="w-3.5 h-3.5" />}
+                    iconPosition="right"
                   >
-                    <span>Inspect & Configure Workflow</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
+                    Inspect & Configure Workflow
+                  </LiquidButton>
                 </div>
               </div>
             )}

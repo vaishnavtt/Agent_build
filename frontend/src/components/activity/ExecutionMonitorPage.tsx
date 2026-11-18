@@ -20,6 +20,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
+import { LiquidButton } from '../common/LiquidButton';
 
 export const ExecutionMonitorPage: React.FC = () => {
   const {
@@ -95,24 +96,28 @@ export const ExecutionMonitorPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* Failure Scenario Simulator */}
-          <button
+          <LiquidButton
+            variant="destructive"
+            size="sm"
             onClick={() => triggerFailureScenario()}
-            className="px-3.5 py-2 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold border border-rose-200 transition-colors flex items-center gap-1.5"
+            icon={<AlertTriangle className="w-3.5 h-3.5 text-white" />}
             title="Simulate a broken component to test Auto-Repair"
           >
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-            <span>Simulate Failure</span>
-          </button>
+            Simulate Failure
+          </LiquidButton>
 
           {/* Re-run button */}
-          <button
+          <LiquidButton
+            variant="primary"
+            size="sm"
             onClick={() => runAgentExecution()}
-            disabled={isExecuting}
-            className="px-5 py-2 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+            loading={isExecuting}
+            loadingText="Executing..."
+            icon={<Play className="w-3.5 h-3.5 fill-white" />}
+            glow
           >
-            <Play className={`w-3.5 h-3.5 fill-white ${isExecuting ? 'animate-spin' : ''}`} />
-            <span>{isExecuting ? 'Executing...' : 'Re-run Agent'}</span>
-          </button>
+            Re-run Agent
+          </LiquidButton>
         </div>
       </div>
 
@@ -198,16 +203,18 @@ export const ExecutionMonitorPage: React.FC = () => {
             </div>
 
             {repairState.stage !== 'completed' && !repairReport && (
-              <button
+              <LiquidButton
+                variant="primary"
+                size="md"
                 onClick={() => executeAutoRepair()}
-                disabled={repairState.stage !== 'idle' || repairState.attemptCount >= 2}
-                className="px-6 py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] disabled:opacity-50 text-white text-xs font-bold shadow-sm transition-all flex items-center gap-2"
+                loading={repairState.stage !== 'idle'}
+                loadingText="Repairing Workflow..."
+                disabled={repairState.attemptCount >= 2}
+                icon={<Sparkles className="w-4 h-4" />}
+                glow
               >
-                <Sparkles className="w-4 h-4" />
-                <span>
-                  {repairState.stage !== 'idle' ? 'Repairing Workflow...' : 'Fix Automatically'}
-                </span>
-              </button>
+                Fix Automatically
+              </LiquidButton>
             )}
           </div>
 
@@ -354,19 +361,21 @@ export const ExecutionMonitorPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
+                  <LiquidButton
+                    variant="secondary"
+                    size="sm"
                     onClick={copyReportSummary}
-                    className="px-3 py-1.5 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] text-[#111111] text-xs font-semibold border border-[#E6E5E2] transition-colors flex items-center gap-1.5"
+                    icon={<Copy className="w-3.5 h-3.5 text-[#8D8D8D]" />}
                   >
-                    <Copy className="w-3.5 h-3.5 text-[#8D8D8D]" />
-                    <span>Copy Summary</span>
-                  </button>
-                  <button
+                    Copy Summary
+                  </LiquidButton>
+                  <LiquidButton
+                    variant="primary"
+                    size="sm"
                     onClick={() => setCurrentPage('editor')}
-                    className="px-4 py-1.5 rounded-full bg-[#0A0A0A] hover:bg-[#1F1F1F] text-white text-xs font-semibold"
                   >
                     Open in Studio
-                  </button>
+                  </LiquidButton>
                 </div>
               </div>
 

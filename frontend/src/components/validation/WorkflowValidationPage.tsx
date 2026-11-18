@@ -18,6 +18,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
+import { LiquidButton } from '../common/LiquidButton';
 
 export const WorkflowValidationPage: React.FC = () => {
   const {
@@ -123,33 +124,39 @@ export const WorkflowValidationPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
+          <LiquidButton
+            variant="secondary"
+            size="md"
             onClick={() => runValidation()}
-            disabled={isValidating}
-            className="px-4 py-2.5 rounded-full bg-[#FFFFFF] hover:bg-[#F1F0EE] text-[#111111] text-xs font-semibold border border-[#E6E5E2] shadow-subtle transition-colors flex items-center gap-2"
+            loading={isValidating}
+            loadingText="Checking..."
+            icon={<RotateCcw className="w-3.5 h-3.5" />}
           >
-            <RotateCcw className={`w-3.5 h-3.5 ${isValidating ? 'animate-spin' : ''}`} />
-            <span>{isValidating ? 'Checking...' : 'Re-check Agent'}</span>
-          </button>
+            Re-check Agent
+          </LiquidButton>
 
           {hasErrors && (
-            <button
+            <LiquidButton
+              variant="primary"
+              size="md"
               onClick={() => executeAutoRepair()}
-              className="px-5 py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+              icon={<Sparkles className="w-3.5 h-3.5" />}
+              glow
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Fix Automatically</span>
-            </button>
+              Fix Automatically
+            </LiquidButton>
           )}
 
           {!hasErrors && (
-            <button
+            <LiquidButton
+              variant="primary"
+              size="md"
               onClick={() => setCurrentPage('activity')}
-              className="px-5 py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+              icon={<Play className="w-3.5 h-3.5 fill-white" />}
+              glow
             >
-              <Play className="w-3.5 h-3.5 fill-white" />
-              <span>Proceed to Agent Activity</span>
-            </button>
+              Proceed to Agent Activity
+            </LiquidButton>
           )}
         </div>
       </div>
@@ -287,13 +294,14 @@ export const WorkflowValidationPage: React.FC = () => {
                 </div>
 
                 {issue.canAutoFix && (
-                  <button
+                  <LiquidButton
+                    variant="primary"
+                    size="sm"
                     onClick={() => executeAutoRepair()}
-                    className="px-4 py-2 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 whitespace-nowrap"
+                    icon={<Sparkles className="w-3.5 h-3.5" />}
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Fix Automatically</span>
-                  </button>
+                    Fix Automatically
+                  </LiquidButton>
                 )}
               </div>
             ))}
@@ -464,13 +472,15 @@ export const WorkflowValidationPage: React.FC = () => {
           ← Back to Workflow Studio
         </button>
 
-        <button
+        <LiquidButton
+          variant="primary"
+          size="md"
           onClick={() => setCurrentPage('activity')}
-          className="px-5 py-2.5 rounded-full bg-[#B15F2C] hover:bg-[#CF8047] text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2"
+          icon={<ArrowRight className="w-4 h-4" />}
+          iconPosition="right"
         >
-          <span>Proceed to Agent Activity</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+          Proceed to Agent Activity
+        </LiquidButton>
       </div>
     </div>
   );
