@@ -8,14 +8,13 @@ import {
   RotateCcw,
   Sparkles,
   ArrowRight,
-  Boxes,
   Workflow,
   Check,
-  ListFilter,
   FileCheck2,
-  Cpu,
-  Layers,
   HelpCircle,
+  Cable,
+  Sliders,
+  Flag,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { LiquidButton } from '../common/LiquidButton';
@@ -48,39 +47,39 @@ export const WorkflowValidationPage: React.FC = () => {
   const hasErrors = errorCount > 0;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12 select-none">
       {/* Top Heading */}
       <div className="space-y-1">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Integrity & Verification</span>
+          <span>Agent Health & Verification</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-[#111111] tracking-tight">
           Check Your Agent
         </h1>
-        <p className="text-sm text-[#8D8D8D]">
-          Verify structural integrity, component configurations, and requirement coverage before running your agent.
+        <p className="text-sm text-[#777777]">
+          Let's make sure your agent is completely ready to work before running it.
         </p>
       </div>
 
-      {/* Main Readiness Score Banner */}
+      {/* Main Readiness Score Banner (Apple Liquid Glass) */}
       <div
-        className={`p-6 sm:p-7 rounded-3xl border shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6 ${
+        className={`p-6 sm:p-7 rounded-3xl border shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all ${
           hasErrors
             ? 'bg-rose-50/50 border-rose-200'
             : warningCount > 0
             ? 'bg-amber-50/40 border-amber-200'
-            : 'bg-[#FFFFFF] border-[#E6E5E2]'
+            : 'liquid-card border-[#EAE8E5]'
         }`}
       >
         <div className="flex items-center gap-4">
           <div
-            className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+            className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-subtle ${
               hasErrors
-                ? 'bg-rose-600 text-white shadow-sm'
+                ? 'bg-rose-600 text-white'
                 : warningCount > 0
-                ? 'bg-amber-500 text-white shadow-sm'
-                : 'bg-emerald-600 text-white shadow-sm'
+                ? 'bg-amber-500 text-white'
+                : 'bg-emerald-600 text-white'
             }`}
           >
             {hasErrors ? (
@@ -97,8 +96,8 @@ export const WorkflowValidationPage: React.FC = () => {
                 {hasErrors
                   ? 'Something needs attention'
                   : warningCount > 0
-                  ? 'Ready with minor recommendations'
-                  : 'Workflow is verified and ready to run'}
+                  ? 'Ready with minor suggestions'
+                  : 'Your agent is verified and ready to run'}
               </span>
               <span
                 className={`text-xs font-extrabold px-3 py-1 rounded-full ${
@@ -112,12 +111,12 @@ export const WorkflowValidationPage: React.FC = () => {
                 {readinessPercent}% Ready
               </span>
             </div>
-            <p className="text-xs text-[#8D8D8D] mt-1.5 max-w-xl leading-relaxed">
+            <p className="text-xs text-[#777777] mt-1.5 max-w-xl leading-relaxed">
               {hasErrors
-                ? 'One or more required components are missing parameters or instructions. Use "Fix Automatically" below or inspect settings.'
+                ? 'One or more components are missing instructions or connections. Click "Fix Automatically" below to let AgentForge AI repair them.'
                 : warningCount > 0
-                ? 'Your agent graph is executable, but optional settings can be fine-tuned for optimal precision.'
-                : 'All components, data flow paths, schemas, and test scenarios are fully validated.'}
+                ? 'Your agent is executable, but optional settings can be fine-tuned for better accuracy.'
+                : 'All components, data paths, and test scenarios are verified.'}
             </p>
           </div>
         </div>
@@ -132,7 +131,7 @@ export const WorkflowValidationPage: React.FC = () => {
             loadingText="Checking..."
             icon={<RotateCcw className="w-3.5 h-3.5" />}
           >
-            Re-check Agent
+            Check My Agent
           </LiquidButton>
 
           {hasErrors && (
@@ -155,55 +154,104 @@ export const WorkflowValidationPage: React.FC = () => {
               icon={<Play className="w-3.5 h-3.5 fill-white" />}
               glow
             >
-              Proceed to Agent Activity
+              Run Agent
             </LiquidButton>
           )}
         </div>
       </div>
 
-      {/* 4 Multi-Dimensional Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-subtle space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Structural Score</span>
-          <div className="text-2xl font-bold text-[#111111]">
-            {validationMetrics?.structuralScore ?? 30}/30
+      {/* 4 Plain-Language Check Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Check 1: Connections */}
+        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#777777] font-medium">1. Connections</span>
+            <Cable className="w-4 h-4 text-emerald-600" />
           </div>
-          <span className="text-[11px] text-emerald-700">Valid entry & exit points</span>
+          <div className="text-sm font-bold text-[#111111]">
+            Are components connected?
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>{edges.length} active connections</span>
+          </div>
+          <p className="text-[11px] text-[#777777] leading-relaxed">
+            Information flows seamlessly from start to finish without gaps.
+          </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-subtle space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Configuration Score</span>
-          <div className={`text-2xl font-bold ${errorCount > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
-            {validationMetrics?.configScore ?? 40}/40
+        {/* Check 2: Required Settings */}
+        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#777777] font-medium">2. Settings</span>
+            <Sliders className="w-4 h-4 text-[#B15F2C]" />
           </div>
-          <span className="text-[11px] text-[#8D8D8D]">
-            {errorCount === 0 ? 'All parameters valid' : `${errorCount} missing required field`}
-          </span>
+          <div className="text-sm font-bold text-[#111111]">
+            Clear instructions?
+          </div>
+          <div className={`flex items-center gap-1.5 text-xs font-semibold ${errorCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            {errorCount > 0 ? (
+              <>
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                <span>{errorCount} need instructions</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>All settings complete</span>
+              </>
+            )}
+          </div>
+          <p className="text-[11px] text-[#777777] leading-relaxed">
+            Every assistant has precise goals and parameters.
+          </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-subtle space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Connections Score</span>
-          <div className="text-2xl font-bold text-emerald-700">
-            {validationMetrics?.connectionScore ?? 30}/30
+        {/* Check 3: Missing Steps */}
+        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#777777] font-medium">3. Steps</span>
+            <Flag className="w-4 h-4 text-emerald-600" />
           </div>
-          <span className="text-[11px] text-[#8D8D8D]">{edges.length} active data edges</span>
+          <div className="text-sm font-bold text-[#111111]">
+            Start & end present?
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Input and Output verified</span>
+          </div>
+          <p className="text-[11px] text-[#777777] leading-relaxed">
+            The agent knows where to receive input and where to deliver output.
+          </p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-subtle space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Requirement Coverage</span>
-          <div className="text-2xl font-bold text-emerald-700">100%</div>
-          <span className="text-[11px] text-[#8D8D8D]">{requirementCoverage.length} criteria satisfied</span>
+        {/* Check 4: Tests */}
+        <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-[#777777] font-medium">4. Tests</span>
+            <FileCheck2 className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-sm font-bold text-[#111111]">
+            Simulations passed?
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>{testCases.length} scenarios passed</span>
+          </div>
+          <p className="text-[11px] text-[#777777] leading-relaxed">
+            Simulated scenarios run successfully before live activation.
+          </p>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-[#E6E5E2] pb-2">
+      {/* Detail Tabs Navigation */}
+      <div className="flex items-center gap-2 border-b border-[#EAE8E5] pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'overview'
-              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30'
-              : 'text-[#8D8D8D] hover:text-[#111111]'
+              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 shadow-subtle'
+              : 'text-[#777777] hover:text-[#111111]'
           }`}
         >
           <AlertCircle className="w-3.5 h-3.5" />
@@ -212,22 +260,22 @@ export const WorkflowValidationPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('structural')}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'structural'
-              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30'
-              : 'text-[#8D8D8D] hover:text-[#111111]'
+              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 shadow-subtle'
+              : 'text-[#777777] hover:text-[#111111]'
           }`}
         >
           <Workflow className="w-3.5 h-3.5" />
-          <span>Structural Topology</span>
+          <span>Workflow Structure</span>
         </button>
 
         <button
           onClick={() => setActiveTab('requirements')}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'requirements'
-              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30'
-              : 'text-[#8D8D8D] hover:text-[#111111]'
+              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 shadow-subtle'
+              : 'text-[#777777] hover:text-[#111111]'
           }`}
         >
           <FileCheck2 className="w-3.5 h-3.5" />
@@ -236,14 +284,14 @@ export const WorkflowValidationPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('tests')}
-          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'tests'
-              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30'
-              : 'text-[#8D8D8D] hover:text-[#111111]'
+              ? 'bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 shadow-subtle'
+              : 'text-[#777777] hover:text-[#111111]'
           }`}
         >
           <Play className="w-3.5 h-3.5" />
-          <span>Automated Test Suite ({testCases.length})</span>
+          <span>Test Scenarios ({testCases.length})</span>
         </button>
       </div>
 
@@ -251,9 +299,9 @@ export const WorkflowValidationPage: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-[#111111]">Configuration & Integrity Issues</h2>
-            <span className="text-xs text-[#8D8D8D]">
-              Checking: <strong className="text-[#111111]">{activeAgentName}</strong>
+            <h2 className="text-base font-bold text-[#111111]">Items to Review</h2>
+            <span className="text-xs text-[#777777]">
+              Agent: <strong className="text-[#111111]">{activeAgentName}</strong>
             </span>
           </div>
 
@@ -261,12 +309,12 @@ export const WorkflowValidationPage: React.FC = () => {
             {validationIssues.map((issue) => (
               <div
                 key={issue.id}
-                className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+                className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all shadow-subtle ${
                   issue.severity === 'error'
                     ? 'bg-rose-50/60 border-rose-200'
                     : issue.severity === 'warning'
                     ? 'bg-amber-50/60 border-amber-200'
-                    : 'bg-[#FFFFFF] border-[#E6E5E2]'
+                    : 'bg-[#FFFFFF] border-[#EAE8E5]'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -282,13 +330,13 @@ export const WorkflowValidationPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-xs sm:text-sm text-[#111111]">{issue.title}</h3>
-                      <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-[#F1F0EE] text-[#8D8D8D]">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#F7F6F4] text-[#777777] border border-[#EAE8E5]">
                         {issue.componentName}
                       </span>
                     </div>
-                    <p className="text-xs text-[#8D8D8D] mt-0.5 leading-relaxed">{issue.description}</p>
+                    <p className="text-xs text-[#777777] mt-0.5 leading-relaxed">{issue.description}</p>
                     <p className="text-xs font-semibold text-[#B15F2C] mt-1">
-                      Recommendation: {issue.suggestedFix}
+                      Suggested Fix: {issue.suggestedFix}
                     </p>
                   </div>
                 </div>
@@ -309,12 +357,12 @@ export const WorkflowValidationPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: Structural Topology Checks */}
+      {/* Tab 2: Workflow Structure */}
       {activeTab === 'structural' && (
-        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card space-y-4">
+        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-4">
           <div>
-            <h2 className="text-base font-bold text-[#111111]">Graph Topology & Connection Verification</h2>
-            <p className="text-xs text-[#8D8D8D]">Checks node reachability, entry and exit ports, and cycle safety.</p>
+            <h2 className="text-base font-bold text-[#111111]">Workflow Connections & Structure</h2>
+            <p className="text-xs text-[#777777]">Ensures all components talk to each other without dead ends or loops.</p>
           </div>
 
           <div className="space-y-3 pt-2">
@@ -322,8 +370,8 @@ export const WorkflowValidationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <h4 className="text-xs font-bold text-[#111111]">Entry Node Present</h4>
-                  <p className="text-[11px] text-[#8D8D8D]">Workflow begins with a valid Input trigger component.</p>
+                  <h4 className="text-xs font-bold text-[#111111]">Starting Point Present</h4>
+                  <p className="text-[11px] text-[#777777]">Workflow begins with a clear Input component.</p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">PASSED</span>
@@ -333,8 +381,8 @@ export const WorkflowValidationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <h4 className="text-xs font-bold text-[#111111]">Terminal Exit Node Present</h4>
-                  <p className="text-[11px] text-[#8D8D8D]">Workflow ends with a formatted Output destination component.</p>
+                  <h4 className="text-xs font-bold text-[#111111]">Delivery Step Present</h4>
+                  <p className="text-[11px] text-[#777777]">Workflow ends with a formatted Output component.</p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">PASSED</span>
@@ -344,8 +392,8 @@ export const WorkflowValidationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <h4 className="text-xs font-bold text-[#111111]">No Isolated / Orphan Nodes</h4>
-                  <p className="text-[11px] text-[#8D8D8D]">All {nodes.length} components have active incoming or outgoing connections.</p>
+                  <h4 className="text-xs font-bold text-[#111111]">No Disconnected Components</h4>
+                  <p className="text-[11px] text-[#777777]">All {nodes.length} components are connected in the flow.</p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">PASSED</span>
@@ -355,8 +403,8 @@ export const WorkflowValidationPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                 <div>
-                  <h4 className="text-xs font-bold text-[#111111]">Cycle Safety & Directed Execution</h4>
-                  <p className="text-[11px] text-[#8D8D8D]">Graph is guaranteed to terminate without infinite loops.</p>
+                  <h4 className="text-xs font-bold text-[#111111]">Safe Execution Path</h4>
+                  <p className="text-[11px] text-[#777777]">The agent is guaranteed to reach the finish line without getting stuck.</p>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">PASSED</span>
@@ -367,21 +415,21 @@ export const WorkflowValidationPage: React.FC = () => {
 
       {/* Tab 3: Requirement Coverage */}
       {activeTab === 'requirements' && (
-        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card space-y-4">
+        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-4">
           <div>
-            <h2 className="text-base font-bold text-[#111111]">Natural Language Requirement Coverage</h2>
-            <p className="text-xs text-[#8D8D8D]">Compares the original prompt requirements against the generated components in your workflow.</p>
+            <h2 className="text-base font-bold text-[#111111]">What You Asked For vs What Was Built</h2>
+            <p className="text-xs text-[#777777]">Shows how each part of your request is handled by a workflow component.</p>
           </div>
 
-          <div className="divide-y divide-[#E6E5E2]">
+          <div className="divide-y divide-[#EAE8E5]">
             {requirementCoverage.map((item) => (
               <div key={item.id} className="py-3.5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <h4 className="text-xs font-bold text-[#111111]">{item.requirement}</h4>
-                    <p className="text-[11px] text-[#8D8D8D]">
-                      Satisfied by component: <span className="font-semibold text-[#B15F2C]">{item.mappedComponent}</span>
+                    <p className="text-[11px] text-[#777777]">
+                      Handled by: <span className="font-semibold text-[#B15F2C]">{item.mappedComponent}</span>
                     </p>
                   </div>
                 </div>
@@ -396,17 +444,17 @@ export const WorkflowValidationPage: React.FC = () => {
 
       {/* Tab 4: Automated Test Suite */}
       {activeTab === 'tests' && (
-        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card space-y-4">
+        <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-[#111111]">Requirement-Based Test Suite</h2>
-              <p className="text-xs text-[#8D8D8D]">Simulated test scenarios generated directly from the agent requirements</p>
+              <h2 className="text-base font-bold text-[#111111]">Simulated Test Scenarios</h2>
+              <p className="text-xs text-[#777777]">Realistic tests generated to prove the agent works before you run it</p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => generateRequirementTests()}
-                className="px-4 py-2 rounded-full bg-[#F1F0EE] hover:bg-[#E3E2DF] text-[#111111] text-xs font-semibold border border-[#E6E5E2] transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-full bg-[#F7F6F4] hover:bg-[#EAE8E5] text-[#111111] text-xs font-semibold border border-[#EAE8E5] transition-colors flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#B15F2C]" />
                 <span>Generate Tests</span>
@@ -415,7 +463,7 @@ export const WorkflowValidationPage: React.FC = () => {
               <button
                 onClick={() => runTestCases()}
                 disabled={isTesting}
-                className="px-4 py-2 rounded-full bg-[#0A0A0A] hover:bg-[#1F1F1F] text-white text-xs font-semibold transition-all flex items-center gap-1.5"
+                className="px-4 py-2 rounded-full bg-[#111111] hover:bg-[#222222] text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-subtle"
               >
                 <Play className="w-3.5 h-3.5 fill-white" />
                 <span>{isTesting ? 'Running Scenarios...' : 'Run All Test Scenarios'}</span>
@@ -426,20 +474,20 @@ export const WorkflowValidationPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-[#E6E5E2] text-[#8D8D8D] text-[11px] pb-2">
-                  <th className="py-2.5 font-semibold">Test Case</th>
-                  <th className="py-2.5 font-semibold">Target Component</th>
+                <tr className="border-b border-[#EAE8E5] text-[#777777] text-[11px] pb-2">
+                  <th className="py-2.5 font-semibold">Test Scenario</th>
+                  <th className="py-2.5 font-semibold">Component Tested</th>
                   <th className="py-2.5 font-semibold">Expected Outcome</th>
-                  <th className="py-2.5 font-semibold">Actual Outcome</th>
+                  <th className="py-2.5 font-semibold">Actual Result</th>
                   <th className="py-2.5 font-semibold text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E6E5E2]">
+              <tbody className="divide-y divide-[#EAE8E5]">
                 {testCases.map((tc) => (
-                  <tr key={tc.id} className="hover:bg-[#F1F0EE]/40 transition-colors">
+                  <tr key={tc.id} className="hover:bg-[#F7F6F4]/50 transition-colors">
                     <td className="py-3 font-semibold text-[#111111]">{tc.name}</td>
-                    <td className="py-3 text-[#8D8D8D]">{tc.targetComponent}</td>
-                    <td className="py-3 text-[#8D8D8D] max-w-xs">{tc.expectedOutput}</td>
+                    <td className="py-3 text-[#777777]">{tc.targetComponent}</td>
+                    <td className="py-3 text-[#777777] max-w-xs">{tc.expectedOutput}</td>
                     <td className="py-3 text-[#111111] max-w-xs font-medium">{tc.actualOutput}</td>
                     <td className="py-3 text-right">
                       <span
@@ -467,9 +515,9 @@ export const WorkflowValidationPage: React.FC = () => {
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={() => setCurrentPage('editor')}
-          className="text-xs text-[#8D8D8D] hover:text-[#111111] font-semibold"
+          className="text-xs text-[#777777] hover:text-[#111111] font-semibold"
         >
-          ← Back to Workflow Studio
+          ← Back to Visual Canvas
         </button>
 
         <LiquidButton

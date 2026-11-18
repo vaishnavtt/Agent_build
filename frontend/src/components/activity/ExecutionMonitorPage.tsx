@@ -12,7 +12,6 @@ import {
   ArrowRight,
   ShieldCheck,
   Check,
-  Zap,
   Terminal,
   FileCheck2,
   Copy,
@@ -42,11 +41,11 @@ export const ExecutionMonitorPage: React.FC = () => {
   const isRepaired = currentExecution?.status === 'repaired' || repairState.stage === 'completed' || repairReport !== null;
 
   const repairSteps = [
-    { number: 1, key: 'identifying', label: 'Problem identified', desc: 'Analyzed node configuration & execution trace' },
-    { number: 2, key: 'preparing', label: 'Correction prepared', desc: 'Synthesized optimal prompt instructions' },
+    { number: 1, key: 'identifying', label: 'Problem identified', desc: 'Analyzed configuration & execution trace' },
+    { number: 2, key: 'preparing', label: 'Correction prepared', desc: 'Created optimal instructions & settings' },
     { number: 3, key: 'applying', label: 'Correction applied', desc: 'Updated component configuration in graph' },
     { number: 4, key: 'checking', label: 'Workflow checked again', desc: 'Verified topology & schema compliance' },
-    { number: 5, key: 'retesting', label: 'Tests executed again', desc: 'Executed 4 requirement test cases successfully' },
+    { number: 5, key: 'retesting', label: 'Tests executed again', desc: 'Executed 4 test scenarios successfully' },
   ];
 
   const getStepProgressNumber = (stage: string) => {
@@ -78,19 +77,19 @@ export const ExecutionMonitorPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12 select-none">
       {/* Page Title & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
             <Activity className="w-3.5 h-3.5" />
-            <span>Execution Telemetry & Self-Repair</span>
+            <span>Telemetry & Live Activity</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-[#111111] tracking-tight mt-1">
-            Agent Activity
+            What is your agent doing?
           </h1>
-          <p className="text-sm text-[#8D8D8D]">
-            Live component execution trace, health verification, and autonomous repair.
+          <p className="text-sm text-[#777777]">
+            Live execution trace, problem detection, and autonomous repair.
           </p>
         </div>
 
@@ -122,17 +121,17 @@ export const ExecutionMonitorPage: React.FC = () => {
       </div>
 
       {/* Execution Summary Metadata Card */}
-      <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Execution ID</span>
+          <span className="text-xs text-[#777777] font-medium">Execution ID</span>
           <div className="text-base font-bold text-[#111111] font-mono">
             {currentExecution?.id || 'exec-9821'}
           </div>
-          <span className="text-[11px] text-[#8D8D8D]">{activeAgentName}</span>
+          <span className="text-[11px] text-[#777777] truncate block">{activeAgentName}</span>
         </div>
 
         <div className="space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Status</span>
+          <span className="text-xs text-[#777777] font-medium">Status</span>
           <div>
             {isExecuting ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
@@ -156,35 +155,35 @@ export const ExecutionMonitorPage: React.FC = () => {
               </span>
             )}
           </div>
-          <span className="text-[11px] text-[#8D8D8D]">
+          <span className="text-[11px] text-[#777777]">
             {isRepaired ? 'Repaired in 1 attempt' : '100% verified'}
           </span>
         </div>
 
         <div className="space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Start Time</span>
+          <span className="text-xs text-[#777777] font-medium">Start Time</span>
           <div className="text-base font-bold text-[#111111] flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-[#8D8D8D]" />
+            <Clock className="w-4 h-4 text-[#777777]" />
             <span>{currentExecution?.startedAt || 'Today at 14:22'}</span>
           </div>
-          <span className="text-[11px] text-[#8D8D8D]">Trigger: {currentExecution?.triggerType || 'Manual Run'}</span>
+          <span className="text-[11px] text-[#777777]">Trigger: {currentExecution?.triggerType || 'Manual Run'}</span>
         </div>
 
         <div className="space-y-1">
-          <span className="text-xs text-[#8D8D8D] font-medium">Duration</span>
+          <span className="text-xs text-[#777777] font-medium">Duration</span>
           <div className="text-base font-bold text-[#111111]">
             {currentExecution?.duration || '2.1s'}
           </div>
-          <span className="text-[11px] text-emerald-700 font-medium">Latency optimized</span>
+          <span className="text-[11px] text-emerald-700 font-medium">Optimized</span>
         </div>
       </div>
 
-      {/* AUTONOMOUS WORKFLOW SELF-REPAIR CARD (Core Differentiator) */}
+      {/* AUTONOMOUS WORKFLOW SELF-REPAIR CARD */}
       {(isFailed || repairState.stage !== 'idle' || repairReport) && (
         <div className="p-6 sm:p-7 rounded-3xl bg-[#FAF5F1] border-2 border-[#CF8047] shadow-card space-y-6 animate-in slide-in-from-top-4 duration-300">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#CF8047]/30">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#B15F2C] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-[#B15F2C] text-white flex items-center justify-center flex-shrink-0 shadow-subtle">
                 <Wrench className="w-5 h-5" />
               </div>
               <div>
@@ -196,8 +195,8 @@ export const ExecutionMonitorPage: React.FC = () => {
                     Attempt {repairState.attemptCount || 1} of 2
                   </span>
                 </div>
-                <p className="text-xs text-[#8D8D8D]">
-                  AgentForge AI identified an execution blocker, isolated root cause, and prepared an automated resolution.
+                <p className="text-xs text-[#777777]">
+                  AgentForge AI identified an issue, found why it happened, and prepared a fix.
                 </p>
               </div>
             </div>
@@ -220,27 +219,27 @@ export const ExecutionMonitorPage: React.FC = () => {
 
           {/* Plain English Diagnosis Triad */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-rose-200 space-y-1 shadow-subtle">
+            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-rose-200 space-y-1.5 shadow-subtle">
               <p className="text-[10px] font-bold uppercase text-rose-700 tracking-wider">
-                What Happened (Problem Found)
+                1. What went wrong?
               </p>
               <p className="font-bold text-xs text-[#111111]">
-                {repairState.problemFound || 'The AI Assistant component is missing its instructions.'}
+                {repairState.problemFound || 'The AI Assistant component is missing instructions.'}
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] space-y-1 shadow-subtle">
-              <p className="text-[10px] font-bold uppercase text-[#8D8D8D] tracking-wider">
-                Why It Failed (Root Cause)
+            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] space-y-1.5 shadow-subtle">
+              <p className="text-[10px] font-bold uppercase text-[#777777] tracking-wider">
+                2. Why did this happen?
               </p>
-              <p className="text-xs text-[#8D8D8D] leading-relaxed">
-                {repairState.whyItHappened || 'The LLM component requires instructions before it can evaluate the candidate resume.'}
+              <p className="text-xs text-[#777777] leading-relaxed">
+                {repairState.whyItHappened || 'The assistant requires instructions before it can evaluate candidate skills.'}
               </p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#CF8047]/40 space-y-1 shadow-subtle">
+            <div className="p-4 rounded-2xl bg-[#FFFFFF] border border-[#CF8047]/40 space-y-1.5 shadow-subtle">
               <p className="text-[10px] font-bold uppercase text-[#B15F2C] tracking-wider">
-                How We Fix It (Suggested Fix)
+                3. How can we fix it?
               </p>
               <p className="text-xs text-[#111111] font-medium leading-relaxed">
                 {repairState.suggestedFix || 'Automatically inject candidate scoring instructions and re-run verification.'}
@@ -250,7 +249,7 @@ export const ExecutionMonitorPage: React.FC = () => {
 
           {/* Execution Log Evidence Panel */}
           {repairState.logEvidence && repairState.logEvidence.length > 0 && (
-            <div className="p-4 rounded-2xl bg-[#0A0A0A] text-[#F1F0EE] space-y-2 border border-[#E6E5E2]/20 font-mono text-xs">
+            <div className="p-4 rounded-2xl bg-[#111111] text-[#F7F6F4] space-y-2 border border-[#EAE8E5]/20 font-mono text-xs">
               <div
                 className="flex items-center justify-between cursor-pointer select-none"
                 onClick={() => setShowLogEvidence(!showLogEvidence)}
@@ -259,17 +258,17 @@ export const ExecutionMonitorPage: React.FC = () => {
                   <Terminal className="w-4 h-4" />
                   <span className="font-bold text-xs font-sans">Execution Log Evidence (Failure Trace)</span>
                 </div>
-                <div className="text-[11px] text-[#8D8D8D] flex items-center gap-1">
+                <div className="text-[11px] text-[#777777] flex items-center gap-1">
                   <span>{showLogEvidence ? 'Collapse' : 'Expand'}</span>
                   {showLogEvidence ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 </div>
               </div>
 
               {showLogEvidence && (
-                <div className="pt-2 space-y-1.5 overflow-x-auto text-[11px] leading-relaxed text-[#8D8D8D]">
+                <div className="pt-2 space-y-1.5 overflow-x-auto text-[11px] leading-relaxed text-[#777777]">
                   {repairState.logEvidence.map((log, idx) => (
                     <div key={idx} className="flex items-start gap-2">
-                      <span className="text-[#8D8D8D]/60 whitespace-nowrap">[{log.timestamp}]</span>
+                      <span className="text-[#777777]/60 whitespace-nowrap">[{log.timestamp}]</span>
                       <span
                         className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
                           log.level === 'ERROR'
@@ -282,7 +281,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                         {log.level}
                       </span>
                       <span className="text-[#CF8047] font-semibold whitespace-nowrap">[{log.component}]</span>
-                      <span className="text-[#F1F0EE]">{log.message}</span>
+                      <span className="text-[#FFFFFF]">{log.message}</span>
                     </div>
                   ))}
                 </div>
@@ -292,7 +291,7 @@ export const ExecutionMonitorPage: React.FC = () => {
 
           {/* 5-Step Repair Execution Progress */}
           {repairState.stage !== 'idle' && (
-            <div className="p-5 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] space-y-4">
+            <div className="p-5 rounded-2xl bg-[#FFFFFF] border border-[#EAE8E5] space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#111111]">
                   Self-Repair Progression Pipeline
@@ -317,7 +316,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                           : isCurrent
                           ? 'bg-[#FAF5F1] border-[#B15F2C] text-[#111111] shadow-subtle ring-1 ring-[#B15F2C]'
-                          : 'bg-[#F1F0EE]/60 border-[#E6E5E2] text-[#8D8D8D]'
+                          : 'bg-[#F7F6F4] border-[#EAE8E5] text-[#777777]'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 font-bold">
@@ -326,7 +325,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                         ) : (
                           <span
                             className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
-                              isCurrent ? 'bg-[#B15F2C] text-white animate-pulse' : 'bg-[#E3E2DF] text-[#8D8D8D]'
+                              isCurrent ? 'bg-[#B15F2C] text-white animate-pulse' : 'bg-[#EAE8E5] text-[#777777]'
                             }`}
                           >
                             {st.number}
@@ -334,7 +333,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                         )}
                         <span className="text-[11px] truncate">{st.label}</span>
                       </div>
-                      <p className="text-[10px] text-[#8D8D8D] leading-tight">{st.desc}</p>
+                      <p className="text-[10px] text-[#777777] leading-tight">{st.desc}</p>
                     </div>
                   );
                 })}
@@ -342,19 +341,19 @@ export const ExecutionMonitorPage: React.FC = () => {
             </div>
           )}
 
-          {/* FINAL EXECUTION & REPAIR REPORT (Displays upon completion) */}
+          {/* FINAL EXECUTION & REPAIR REPORT */}
           {repairReport && (
             <div className="p-6 rounded-2xl bg-[#FFFFFF] border-2 border-emerald-500 shadow-card space-y-4 animate-in fade-in">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E6E5E2] pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EAE8E5] pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-subtle">
                     <FileCheck2 className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-[#111111]">
                       Final Execution & Repair Report
                     </h3>
-                    <p className="text-[11px] text-[#8D8D8D]">
+                    <p className="text-[11px] text-[#777777]">
                       Verification complete • Status: <span className="text-emerald-700 font-bold">{repairReport.finalStatus}</span>
                     </p>
                   </div>
@@ -365,7 +364,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                     variant="secondary"
                     size="sm"
                     onClick={copyReportSummary}
-                    icon={<Copy className="w-3.5 h-3.5 text-[#8D8D8D]" />}
+                    icon={<Copy className="w-3.5 h-3.5 text-[#777777]" />}
                   >
                     Copy Summary
                   </LiquidButton>
@@ -374,7 +373,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                     size="sm"
                     onClick={() => setCurrentPage('editor')}
                   >
-                    Open in Studio
+                    Open in Visual Canvas
                   </LiquidButton>
                 </div>
               </div>
@@ -383,7 +382,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                 <div className="p-3.5 rounded-xl bg-[#FAF5F1] border border-[#CF8047]/20 space-y-1">
                   <span className="text-[10px] uppercase font-bold text-[#B15F2C]">Original Failure Diagnosis</span>
                   <p className="font-bold text-[#111111]">{repairReport.originalError}</p>
-                  <p className="text-[11px] text-[#8D8D8D]">{repairReport.diagnosedReason}</p>
+                  <p className="text-[11px] text-[#777777]">{repairReport.diagnosedReason}</p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1">
@@ -393,14 +392,14 @@ export const ExecutionMonitorPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#F1F0EE]/60 border border-[#E6E5E2] flex items-center justify-between text-xs">
-                <span className="text-[#8D8D8D]">
+              <div className="p-3 rounded-xl bg-[#F7F6F4] border border-[#EAE8E5] flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
+                <span className="text-[#777777]">
                   Topology Re-check: <strong className="text-emerald-700">{repairReport.revalidationResult}</strong>
                 </span>
-                <span className="text-[#8D8D8D]">
+                <span className="text-[#777777]">
                   Test Suite: <strong className="text-emerald-700">{repairReport.retestResult}</strong>
                 </span>
-                <span className="text-[11px] font-mono text-[#8D8D8D]">{repairReport.timestamp}</span>
+                <span className="text-[11px] font-mono text-[#777777]">{repairReport.timestamp}</span>
               </div>
             </div>
           )}
@@ -413,7 +412,7 @@ export const ExecutionMonitorPage: React.FC = () => {
           <h2 className="text-base font-bold text-[#111111]">
             Step-by-Step Component Execution Trace
           </h2>
-          <span className="text-xs text-[#8D8D8D]">
+          <span className="text-xs text-[#777777]">
             {currentExecution?.steps.length || 0} Steps in pipeline
           </span>
         </div>
@@ -427,11 +426,11 @@ export const ExecutionMonitorPage: React.FC = () => {
                   ? 'bg-rose-50/60 border-rose-200'
                   : st.status === 'processing'
                   ? 'bg-amber-50/60 border-amber-200'
-                  : 'bg-[#FFFFFF] border-[#E6E5E2] shadow-subtle'
+                  : 'bg-[#FFFFFF] border-[#EAE8E5] shadow-card'
               }`}
             >
               <div className="flex items-start sm:items-center gap-3">
-                <span className="w-7 h-7 rounded-xl bg-[#F1F0EE] text-[#111111] font-bold text-xs flex items-center justify-center flex-shrink-0">
+                <span className="w-7 h-7 rounded-xl bg-[#F7F6F4] text-[#111111] font-bold text-xs flex items-center justify-center flex-shrink-0 border border-[#EAE8E5]">
                   {st.stepNumber}
                 </span>
                 <div>
@@ -443,14 +442,14 @@ export const ExecutionMonitorPage: React.FC = () => {
                       {st.componentType}
                     </span>
                   </div>
-                  <p className="text-xs text-[#8D8D8D] mt-0.5 leading-relaxed">
+                  <p className="text-xs text-[#777777] mt-0.5 leading-relaxed">
                     {st.activity}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-[11px] text-[#8D8D8D] font-mono">
+                <span className="text-[11px] text-[#777777] font-mono">
                   {st.timestamp}
                 </span>
 
@@ -462,7 +461,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                       ? 'bg-amber-50 text-amber-800 border border-amber-200 animate-pulse'
                       : st.status === 'failed'
                       ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                      : 'bg-[#F1F0EE] text-[#8D8D8D]'
+                      : 'bg-[#F7F6F4] text-[#777777]'
                   }`}
                 >
                   {st.status === 'completed' && <Check className="w-3 h-3 text-emerald-600" />}
@@ -476,24 +475,24 @@ export const ExecutionMonitorPage: React.FC = () => {
       </div>
 
       {/* Execution Logs Table */}
-      <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card space-y-4">
+      <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-4">
         <h2 className="text-base font-bold text-[#111111]">Execution Activity Log</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-mono">
             <thead>
-              <tr className="border-b border-[#E6E5E2] text-[#8D8D8D] text-[11px] pb-2">
-                <th className="py-2">Timestamp</th>
-                <th className="py-2">Component</th>
-                <th className="py-2">Activity Description</th>
-                <th className="py-2 text-right">Status</th>
+              <tr className="border-b border-[#EAE8E5] text-[#777777] text-[11px] pb-2">
+                <th className="py-2 font-medium">Timestamp</th>
+                <th className="py-2 font-medium">Component</th>
+                <th className="py-2 font-medium">Activity Description</th>
+                <th className="py-2 text-right font-medium">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#E6E5E2]">
+            <tbody className="divide-y divide-[#EAE8E5]">
               {currentExecution?.steps.map((st, i) => (
-                <tr key={i} className="hover:bg-[#F1F0EE]/30">
-                  <td className="py-2.5 text-[#8D8D8D]">{st.timestamp}</td>
+                <tr key={i} className="hover:bg-[#F7F6F4]/50 transition-colors">
+                  <td className="py-2.5 text-[#777777]">{st.timestamp}</td>
                   <td className="py-2.5 font-semibold text-[#111111]">[{st.componentName}]</td>
-                  <td className="py-2.5 text-[#8D8D8D]">{st.activity}</td>
+                  <td className="py-2.5 text-[#777777]">{st.activity}</td>
                   <td className="py-2.5 text-right font-sans">
                     <span
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
@@ -503,7 +502,7 @@ export const ExecutionMonitorPage: React.FC = () => {
                           ? 'bg-amber-50 text-amber-800'
                           : st.status === 'failed'
                           ? 'bg-rose-50 text-rose-800'
-                          : 'bg-[#F1F0EE] text-[#8D8D8D]'
+                          : 'bg-[#F7F6F4] text-[#777777]'
                       }`}
                     >
                       {st.status}

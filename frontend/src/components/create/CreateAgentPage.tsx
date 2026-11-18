@@ -9,10 +9,7 @@ import {
   Workflow,
   CheckCircle2,
   Lightbulb,
-  FileCheck,
   ShieldCheck,
-  Cpu,
-  Layers,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { LiquidButton } from '../common/LiquidButton';
@@ -29,36 +26,36 @@ export const CreateAgentPage: React.FC = () => {
     setCurrentPage,
   } = useWorkflow();
 
-  const [prompt, setPrompt] = useState(activePrompt || '');
+  const examplePrompts = [
+    {
+      title: 'Resume Evaluation Assistant',
+      category: 'Recruiting & HR',
+      text: 'Create a resume evaluation assistant that reads PDF resumes, extracts candidate skills, compares them with a job description and generates an evaluation report.',
+    },
+    {
+      title: 'Invoice Processing Assistant',
+      category: 'Finance & Ops',
+      text: 'Create an invoice processing assistant that parses vendor PDF invoices, verifies tax IDs, checks if total exceeds $1,000, and requests manager approval.',
+    },
+    {
+      title: 'PDF Question-Answering Assistant',
+      category: 'Knowledge Base',
+      text: 'Create a PDF question-answering assistant where users can upload technical documents and ask questions to get instant, referenced answers.',
+    },
+    {
+      title: 'Document Summarization Assistant',
+      category: 'Productivity',
+      text: 'Create a document summarization assistant that condenses long reports into a concise 5-bullet executive summary and emails team leads.',
+    },
+  ];
+
+  const [prompt, setPrompt] = useState(activePrompt || examplePrompts[0].text);
 
   useEffect(() => {
     if (activePrompt) {
       setPrompt(activePrompt);
     }
   }, [activePrompt]);
-
-  const examplePrompts = [
-    {
-      title: 'Resume & Candidate Screener (Recommended)',
-      category: 'HR & Recruiting',
-      text: 'Create an agent that reads PDF resumes, extracts candidate skills, compares them with a job description and generates an evaluation report.',
-    },
-    {
-      title: 'Invoice Approver & Tax Checker',
-      category: 'Finance',
-      text: 'Build an invoice processing agent that parses vendor PDF invoices, verifies tax IDs, checks if total is over $1,000, and requests finance manager approval.',
-    },
-    {
-      title: 'Technical Documentation Q&A',
-      category: 'Knowledge Base',
-      text: 'Create a research agent where I can upload long technical PDFs and ask natural questions to get instant, referenced answers.',
-    },
-    {
-      title: 'Executive Briefing Summarizer',
-      category: 'Productivity',
-      text: 'Create an agent that summarizes quarterly executive reports into 5 bullet points and emails it to the team.',
-    },
-  ];
 
   const handleGenerate = () => {
     const textToUse = prompt.trim() || examplePrompts[0].text;
@@ -73,86 +70,91 @@ export const CreateAgentPage: React.FC = () => {
   const steps = [
     {
       number: 1,
-      title: 'Understanding requirements',
-      description: 'Analyzing natural language intent, goal parameters, and data sources',
+      title: 'Understanding your request',
+      description: 'Analyzing natural language intent, goal parameters, and inputs',
       icon: BrainCircuit,
-      detail: 'Goal: Automated candidate qualification against technical criteria',
+      detail: 'Parsed requirements & goal parameters',
     },
     {
       number: 2,
-      title: 'Planning tasks',
+      title: 'Planning the tasks',
       description: 'Decomposing requirement into discrete sequential and conditional tasks',
       icon: Workflow,
-      detail: 'Decomposed: PDF Ingestion → LLM Skill Fit → Condition Check → Approval → Output',
+      detail: 'Decomposed 5 operational steps',
     },
     {
       number: 3,
-      title: 'Selecting components',
-      description: 'Selecting appropriate predefined components from canonical library',
+      title: 'Selecting the required components',
+      description: 'Choosing appropriate predefined components from the library',
       icon: Boxes,
-      detail: 'Selected: Input, Document Reader, AI Assistant, Condition, Human Approval, Output',
+      detail: 'Selected Input, PDF Reader, AI Assistant, Decision & Output',
     },
     {
       number: 4,
-      title: 'Generating workflow',
-      description: 'Synthesizing visual nodes, configuring data ports, and wiring edges',
+      title: 'Building your agent',
+      description: 'Synthesizing visual workflow graph, setting schemas and wiring connections',
       icon: Bot,
-      detail: `Graph assembled with ${nodes.length || 6} nodes and ${edges.length || 5} data flow edges`,
+      detail: `Assembled ${nodes.length || 6} components with verified connections`,
     },
   ];
 
   const isComplete = !isGenerating && generationStep === 4;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-4xl mx-auto space-y-8 pb-16">
       {/* Heading & Subtitle */}
       <div className="text-center space-y-2 max-w-2xl mx-auto pt-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
+        <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Natural Language Agent Builder</span>
+          <span>No-Code Agent Builder</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-[#111111] tracking-tight">
-          What would you like your AI agent to do?
+          What would you like your AI assistant to do?
         </h1>
-        <p className="text-sm text-[#8D8D8D] leading-relaxed">
+        <p className="text-sm sm:text-base text-[#777777] leading-relaxed">
           Describe your task in simple language. AgentForge AI turns your instructions into an executable visual workflow.
         </p>
       </div>
 
-      {/* Main Input Card */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-card space-y-6">
+      {/* Main Input Card (Liquid Glass) */}
+      <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-[#EAE8E5] shadow-card space-y-6">
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#111111]">
-            Your Instructions
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[#111111]">
+              Your Instructions
+            </label>
+            <span className="text-[11px] text-[#777777] font-medium">
+              Demo Simulation Runtime
+            </span>
+          </div>
           <div className="relative">
             <textarea
               rows={4}
               disabled={isGenerating}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Create an agent that reads PDF resumes, extracts candidate skills, compares them with a job description and generates an evaluation report."
-              className="w-full text-sm sm:text-base text-[#111111] placeholder:text-[#8D8D8D]/60 bg-[#F1F0EE]/50 border border-[#E6E5E2] rounded-2xl p-4 sm:p-5 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all resize-none disabled:opacity-50"
+              placeholder="e.g. Create a resume evaluation assistant that reads PDF resumes, extracts candidate skills, compares them with a job description and generates an evaluation report."
+              className="w-full text-base sm:text-lg text-[#111111] placeholder:text-[#777777]/60 bg-white/90 border border-[#EAE8E5] rounded-2xl p-4 sm:p-5 focus:outline-none focus:border-[#B15F2C] focus:bg-white shadow-subtle transition-all resize-none disabled:opacity-50 leading-relaxed"
             />
-            <div className="absolute bottom-3 right-4 text-[11px] text-[#8D8D8D]">
+            <div className="absolute bottom-3 right-4 text-[11px] text-[#777777]">
               {prompt.length} characters
             </div>
           </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="flex items-center gap-3">
             <LiquidButton
               variant="primary"
-              size="md"
+              size="lg"
               onClick={handleGenerate}
               loading={isGenerating}
-              loadingText="Synthesizing Agent..."
+              loadingText="Building your agent..."
               icon={<Sparkles className="w-4 h-4" />}
               glow
             >
-              Generate Workflow
+              Create My Agent
             </LiquidButton>
 
             <LiquidButton
@@ -160,7 +162,7 @@ export const CreateAgentPage: React.FC = () => {
               size="md"
               onClick={handleClear}
               disabled={isGenerating || !prompt}
-              icon={<RotateCcw className="w-3.5 h-3.5 text-[#8D8D8D]" />}
+              icon={<RotateCcw className="w-3.5 h-3.5 text-[#777777]" />}
             >
               Clear
             </LiquidButton>
@@ -170,7 +172,7 @@ export const CreateAgentPage: React.FC = () => {
             onClick={() => setCurrentPage('templates')}
             className="text-xs text-[#B15F2C] font-semibold hover:underline flex items-center gap-1"
           >
-            <span>Or choose a pre-made template →</span>
+            <span>Or browse pre-configured templates →</span>
           </button>
         </div>
 
@@ -178,30 +180,38 @@ export const CreateAgentPage: React.FC = () => {
         {(isGenerating || isComplete) && (
           <div className="mt-6 p-6 rounded-2xl bg-[#FAF5F1] border border-[#CF8047]/30 space-y-5 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-8 h-8 rounded-xl ${isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'} text-white flex items-center justify-center ${isGenerating ? 'animate-spin' : ''}`}>
-                  {isComplete ? <CheckCircle2 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-2xl ${
+                    isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
+                  } text-white flex items-center justify-center shadow-subtle ${
+                    isGenerating ? 'animate-spin' : ''
+                  }`}
+                >
+                  {isComplete ? <CheckCircle2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-[#111111]">
-                    {isComplete ? 'Workflow Generated Successfully!' : 'AgentForge AI is building your workflow...'}
+                    {isComplete ? 'Agent Workflow Built Successfully!' : 'AgentForge AI is building your agent...'}
                   </h3>
-                  <p className="text-[11px] text-[#8D8D8D]">
+                  <p className="text-[11px] text-[#777777]">
                     {isComplete
-                      ? `Synthesized "${activeAgentName}" with 6 components and verified schema.`
-                      : 'Converting your requirements into an executable visual workflow'}
+                      ? `Synthesized "${activeAgentName}" with 6 connected components.`
+                      : 'Converting your instructions into an executable visual workflow'}
                   </p>
                 </div>
               </div>
               <span className="text-xs font-bold text-[#B15F2C]">
-                {isComplete ? 'Step 4 of 4 Completed' : `Step ${generationStep} of 4`}
+                {isComplete ? '4 of 4 Steps Completed' : `Step ${generationStep} of 4`}
               </span>
             </div>
 
             {/* Step Progress Line */}
-            <div className="w-full bg-[#E6E5E2] h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-[#EAE8E5] h-1.5 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-500 rounded-full ${isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'}`}
+                className={`h-full transition-all duration-500 rounded-full ${
+                  isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
+                }`}
                 style={{ width: `${(generationStep / 4) * 100}%` }}
               />
             </div>
@@ -215,26 +225,26 @@ export const CreateAgentPage: React.FC = () => {
                 return (
                   <div
                     key={st.number}
-                    className={`p-3.5 rounded-xl border transition-all flex items-start gap-2.5 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${
                       isDone
-                        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
+                        ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
                         : isCurrent
-                        ? 'bg-[#FFFFFF] border-[#B15F2C] shadow-subtle text-[#111111] ring-1 ring-[#B15F2C]'
-                        : 'bg-[#F1F0EE]/60 border-[#E6E5E2] text-[#8D8D8D]'
+                        ? 'bg-white border-[#B15F2C] shadow-subtle text-[#111111] ring-1 ring-[#B15F2C]'
+                        : 'bg-white/60 border-[#EAE8E5] text-[#777777]'
                     }`}
                   >
                     <div className="pt-0.5">
                       {isDone ? (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       ) : (
-                        <Icon className={`w-4 h-4 ${isCurrent ? 'text-[#B15F2C] animate-pulse' : 'text-[#8D8D8D]'}`} />
+                        <Icon className={`w-4 h-4 ${isCurrent ? 'text-[#B15F2C] animate-pulse' : 'text-[#777777]'}`} />
                       )}
                     </div>
                     <div>
                       <p className="text-xs font-bold">{st.title}</p>
-                      <p className="text-[10px] text-[#8D8D8D] mt-0.5">{st.description}</p>
+                      <p className="text-[10px] text-[#777777] mt-0.5">{st.description}</p>
                       {isDone && (
-                        <p className="text-[10px] text-emerald-700 font-medium mt-1">
+                        <p className="text-[10px] text-emerald-700 font-semibold mt-1">
                           ✓ {st.detail}
                         </p>
                       )}
@@ -246,10 +256,10 @@ export const CreateAgentPage: React.FC = () => {
 
             {/* Actions once workflow is generated */}
             {isComplete && (
-              <div className="p-4 rounded-xl bg-[#FFFFFF] border border-[#E6E5E2] flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in">
+              <div className="p-4 rounded-2xl bg-white border border-[#EAE8E5] flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in shadow-subtle">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[#111111]">{activeAgentName}:</span>
-                  <span className="text-xs text-[#8D8D8D]">{nodes.length} Components, {edges.length} Connections</span>
+                  <span className="text-xs text-[#777777]">{nodes.length} Components, {edges.length} Connections</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <LiquidButton
@@ -266,8 +276,9 @@ export const CreateAgentPage: React.FC = () => {
                     onClick={() => setCurrentPage('editor')}
                     icon={<ArrowRight className="w-3.5 h-3.5" />}
                     iconPosition="right"
+                    glow
                   >
-                    Inspect & Configure Workflow
+                    Open in Workflow Studio
                   </LiquidButton>
                 </div>
               </div>
@@ -278,7 +289,7 @@ export const CreateAgentPage: React.FC = () => {
 
       {/* Example Prompts Selection */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[#8D8D8D] uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-xs font-bold text-[#777777] uppercase tracking-wider">
           <Lightbulb className="w-4 h-4 text-[#B15F2C]" />
           <span>Need inspiration? Try these prompt examples</span>
         </div>
@@ -291,21 +302,21 @@ export const CreateAgentPage: React.FC = () => {
                 setPrompt(example.text);
                 generateAgentFromPrompt(example.text);
               }}
-              className="p-5 rounded-2xl bg-[#FFFFFF] border border-[#E6E5E2] shadow-subtle hover:shadow-card hover:border-[#CF8047]/40 cursor-pointer transition-all space-y-2 group"
+              className="p-5 rounded-3xl bg-white border border-[#EAE8E5] shadow-card hover:shadow-card-hover hover:border-[#CF8047]/40 cursor-pointer transition-all space-y-2 group active:scale-[0.99]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/20">
+                <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/20">
                   {example.category}
                 </span>
                 <span className="text-[11px] text-[#B15F2C] font-semibold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                  <span>Generate now</span>
+                  <span>Create now</span>
                   <ArrowRight className="w-3 h-3" />
                 </span>
               </div>
               <h3 className="font-bold text-sm text-[#111111] group-hover:text-[#B15F2C] transition-colors">
                 {example.title}
               </h3>
-              <p className="text-xs text-[#8D8D8D] leading-relaxed line-clamp-2">
+              <p className="text-xs text-[#777777] leading-relaxed line-clamp-2">
                 "{example.text}"
               </p>
             </div>

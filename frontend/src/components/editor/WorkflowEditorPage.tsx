@@ -21,6 +21,7 @@ import {
   Edit2,
   Check,
   Info,
+  ArrowLeft,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { ComponentLibrary } from './ComponentLibrary';
@@ -53,6 +54,7 @@ const WorkflowEditorContent: React.FC = () => {
     redo,
     disconnectEdge,
     backendStatus,
+    setCurrentPage,
   } = useWorkflow();
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -115,10 +117,21 @@ const WorkflowEditorContent: React.FC = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden bg-[#FFFFFF]">
-      {/* Top Studio Toolbar */}
-      <div className="h-14 px-4 bg-[#FFFFFF] border-b border-[#E6E5E2] flex items-center justify-between z-10 select-none">
-        {/* Left: Workflow Title & Inline Rename */}
+      {/* Top Studio Toolbar with Apple Liquid Glass styling */}
+      <div className="h-14 px-4 liquid-glass border-b border-[#EAE8E5] flex items-center justify-between z-10 select-none">
+        {/* Left: Back button & Workflow Title & Inline Rename */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCurrentPage('dashboard')}
+            className="p-1.5 rounded-xl text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] transition-colors flex items-center gap-1.5 text-xs font-medium"
+            title="Return to Dashboard"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#777777]" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
+
+          <div className="h-4 w-px bg-[#EAE8E5] hidden sm:block" />
+
           {isEditingTitle ? (
             <div className="flex items-center gap-1.5">
               <input
@@ -127,7 +140,7 @@ const WorkflowEditorContent: React.FC = () => {
                 onChange={(e) => setTitleInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
                 autoFocus
-                className="text-sm font-bold text-[#111111] bg-[#F1F0EE] border border-[#B15F2C] rounded-lg px-2.5 py-1 focus:outline-none"
+                className="text-sm font-semibold text-[#111111] bg-[#F7F6F4] border border-[#B15F2C] rounded-lg px-2.5 py-1 focus:outline-none"
               />
               <button
                 onClick={handleTitleSubmit}
@@ -147,29 +160,29 @@ const WorkflowEditorContent: React.FC = () => {
               <h2 className="text-sm font-bold text-[#111111] tracking-tight group-hover:text-[#B15F2C] transition-colors">
                 {activeAgentName}
               </h2>
-              <Edit2 className="w-3 h-3 text-[#8D8D8D] opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[10px] bg-[#F1F0EE] text-[#8D8D8D] px-2 py-0.5 rounded-full font-medium">
+              <Edit2 className="w-3 h-3 text-[#777777] opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[10px] bg-[#F7F6F4] text-[#777777] border border-[#EAE8E5] px-2 py-0.5 rounded-full font-medium">
                 {nodes.length} Components
               </span>
             </div>
           )}
 
           {/* Mode Pill */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[10px] font-semibold text-[#B15F2C]">
+          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[10px] font-semibold text-[#B15F2C]">
             <span className={`w-1.5 h-1.5 rounded-full ${backendStatus === 'connected' ? 'bg-emerald-500' : 'bg-[#B15F2C]'}`} />
-            <span>{backendStatus === 'connected' ? 'Live Backend Connected' : 'Demo Mode (Simulated Runtime)'}</span>
+            <span>{backendStatus === 'connected' ? 'Live Backend Connected' : 'Simulated Runtime Mode'}</span>
           </div>
         </div>
 
         {/* Center/Right Action Buttons */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Undo / Redo */}
-          <div className="flex items-center border border-[#E6E5E2] rounded-xl bg-[#FFFFFF] p-0.5">
+          <div className="flex items-center border border-[#EAE8E5] rounded-xl bg-[#FFFFFF] p-0.5 shadow-subtle">
             <button
               onClick={undo}
               disabled={!canUndo}
               title="Undo last change"
-              className="p-1.5 rounded-lg text-[#8D8D8D] hover:text-[#111111] hover:bg-[#F1F0EE] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Undo2 className="w-3.5 h-3.5" />
             </button>
@@ -177,7 +190,7 @@ const WorkflowEditorContent: React.FC = () => {
               onClick={redo}
               disabled={!canRedo}
               title="Redo change"
-              className="p-1.5 rounded-lg text-[#8D8D8D] hover:text-[#111111] hover:bg-[#F1F0EE] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="p-1.5 rounded-lg text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Redo2 className="w-3.5 h-3.5" />
             </button>
@@ -187,7 +200,7 @@ const WorkflowEditorContent: React.FC = () => {
           <button
             onClick={resetWorkflow}
             title="Reset Workflow to default"
-            className="p-2 rounded-xl text-[#8D8D8D] hover:text-[#111111] hover:bg-[#F1F0EE] border border-[#E6E5E2]"
+            className="p-2 rounded-xl text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] border border-[#EAE8E5] transition-colors shadow-subtle"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
@@ -197,7 +210,7 @@ const WorkflowEditorContent: React.FC = () => {
             variant="secondary"
             size="sm"
             onClick={saveWorkflow}
-            icon={<Save className="w-3.5 h-3.5 text-[#8D8D8D]" />}
+            icon={<Save className="w-3.5 h-3.5 text-[#777777]" />}
           >
             <span className="hidden sm:inline">Save</span>
           </LiquidButton>
@@ -243,9 +256,9 @@ const WorkflowEditorContent: React.FC = () => {
         >
           {/* Subtle canvas tip badge */}
           <div className="absolute top-3 left-4 z-10 pointer-events-none">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFFFFF]/90 backdrop-blur-sm border border-[#E6E5E2] text-[11px] text-[#8D8D8D] shadow-subtle">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full liquid-glass border border-[#EAE8E5] text-[11px] text-[#777777] shadow-glass">
               <Info className="w-3.5 h-3.5 text-[#B15F2C]" />
-              <span>Drag components from left panel • Click a line to disconnect</span>
+              <span>Drag components from the library • Click a connection line to remove it</span>
             </span>
           </div>
 
@@ -273,17 +286,17 @@ const WorkflowEditorContent: React.FC = () => {
               variant={BackgroundVariant.Dots}
               gap={20}
               size={1.2}
-              color="#E3E2DF"
+              color="#EAE8E5"
             />
             <Controls
               position="bottom-left"
-              className="!bg-[#FFFFFF] !border-[#E6E5E2] !rounded-xl !shadow-card"
+              className="!bg-[#FFFFFF] !border-[#EAE8E5] !rounded-2xl !shadow-glass"
             />
             <MiniMap
               nodeColor="#B15F2C"
-              maskColor="rgba(241, 240, 238, 0.7)"
+              maskColor="rgba(247, 246, 244, 0.7)"
               position="bottom-right"
-              className="!bg-[#FFFFFF] !border-[#E6E5E2] !rounded-xl !shadow-card !bottom-12"
+              className="!bg-[#FFFFFF] !border-[#EAE8E5] !rounded-2xl !shadow-glass !bottom-12"
             />
           </ReactFlow>
         </div>

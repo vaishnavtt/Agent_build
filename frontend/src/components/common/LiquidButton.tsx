@@ -97,13 +97,13 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
     primary:
       'bg-gradient-to-b from-[#B15F2C] to-[#984D20] text-white shadow-[0_4px_14px_-2px_rgba(177,95,44,0.4),0_1px_2px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_22px_-2px_rgba(177,95,44,0.55),0_2px_4px_rgba(0,0,0,0.15)] hover:from-[#CF8047] hover:to-[#B15F2C] border border-[#CF8047]/40',
     secondary:
-      'bg-gradient-to-b from-[#FFFFFF] to-[#F1F0EE] text-[#111111] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:from-[#FFFFFF] hover:to-[#E3E2DF] border border-[#E6E5E2]',
+      'bg-gradient-to-b from-[#FFFFFF] to-[#F7F6F4] text-[#111111] shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.06)] hover:from-[#FFFFFF] hover:to-[#EFECE8] border border-[#EAE8E5]',
     destructive:
       'bg-gradient-to-b from-[#DC2626] to-[#B91C1C] text-white shadow-[0_4px_14px_-2px_rgba(220,38,38,0.4)] hover:shadow-[0_8px_20px_-2px_rgba(220,38,38,0.55)] hover:from-[#EF4444] hover:to-[#DC2626] border border-rose-400/40',
     success:
       'bg-gradient-to-b from-[#059669] to-[#047857] text-white shadow-[0_4px_14px_-2px_rgba(5,150,105,0.4)] hover:shadow-[0_8px_20px_-2px_rgba(5,150,105,0.55)] hover:from-[#10B981] hover:to-[#059669] border border-emerald-400/40',
     glass:
-      'backdrop-blur-md bg-white/80 text-[#111111] shadow-[0_4px_16px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:bg-white/95 border border-[#E6E5E2]',
+      'backdrop-blur-md bg-white/80 text-[#111111] shadow-[0_4px_16px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.07)] hover:bg-white/95 border border-[#EAE8E5]',
   }[variant];
 
   // Specular top bevel highlight based on variant

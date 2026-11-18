@@ -11,12 +11,32 @@ import {
   Cpu,
   Trash2,
   Copy,
-  Settings2,
   AlertCircle,
   CheckCircle2,
 } from 'lucide-react';
 import { WorkflowNodeData, ComponentType } from '../../types';
 import { useWorkflow } from '../../context/WorkflowContext';
+
+const getDisplayTitle = (type: ComponentType): string => {
+  switch (type) {
+    case 'Input':
+      return 'Input';
+    case 'Document Reader':
+      return 'PDF Reader';
+    case 'LLM':
+      return 'AI Assistant';
+    case 'Condition':
+      return 'Decision';
+    case 'Human Approval':
+      return 'Human Approval';
+    case 'Tool':
+      return 'Tool';
+    case 'Output':
+      return 'Output';
+    default:
+      return type;
+  }
+};
 
 const getNodeIcon = (type: ComponentType) => {
   switch (type) {
@@ -33,9 +53,9 @@ const getNodeIcon = (type: ComponentType) => {
     case 'Tool':
       return <Wrench className="w-4 h-4 text-teal-700" />;
     case 'Output':
-      return <FileOutput className="w-4 h-4 text-[#0A0A0A]" />;
+      return <FileOutput className="w-4 h-4 text-[#111111]" />;
     default:
-      return <Cpu className="w-4 h-4 text-[#8D8D8D]" />;
+      return <Cpu className="w-4 h-4 text-[#777777]" />;
   }
 };
 
@@ -54,9 +74,9 @@ const getNodeTypeBadge = (type: ComponentType) => {
     case 'Tool':
       return { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200' };
     case 'Output':
-      return { bg: 'bg-[#F1F0EE]', text: 'text-[#0A0A0A]', border: 'border-[#E6E5E2]' };
+      return { bg: 'bg-[#F7F6F4]', text: 'text-[#111111]', border: 'border-[#EAE8E5]' };
     default:
-      return { bg: 'bg-[#F1F0EE]', text: 'text-[#8D8D8D]', border: 'border-[#E6E5E2]' };
+      return { bg: 'bg-[#F7F6F4]', text: 'text-[#777777]', border: 'border-[#EAE8E5]' };
   }
 };
 
@@ -69,17 +89,18 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
   const isCondition = nodeData.componentType === 'Condition';
 
   const badge = getNodeTypeBadge(nodeData.componentType);
+  const displayTitle = getDisplayTitle(nodeData.componentType);
 
   return (
     <div
-      className={`w-64 rounded-2xl bg-[#FFFFFF] border transition-all duration-150 select-none group ${
+      className={`w-64 rounded-2xl bg-[#FFFFFF] border transition-all duration-200 select-none group ${
         selected
-          ? 'border-[#B15F2C] shadow-elevated ring-2 ring-[#B15F2C]/10'
+          ? 'border-[#B15F2C] shadow-elevated ring-2 ring-[#B15F2C]/15'
           : nodeData.status === 'failed'
           ? 'border-rose-400 shadow-card bg-rose-50/20 ring-2 ring-rose-300/30'
           : nodeData.status === 'executing'
-          ? 'border-amber-400 shadow-card bg-amber-50/20'
-          : 'border-[#E6E5E2] shadow-card hover:shadow-card-hover hover:border-[#CF8047]/40'
+          ? 'border-amber-400 shadow-card bg-amber-50/20 ring-1 ring-amber-400/30'
+          : 'border-[#EAE8E5] shadow-card hover:shadow-card-hover hover:border-[#CF8047]/40'
       }`}
     >
       {/* Target Connection Handle (Left) */}
@@ -87,18 +108,18 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
         <Handle
           type="target"
           position={Position.Left}
-          className="!w-3 !h-3 !-left-1.5 !bg-white !border-2 !border-[#B15F2C] hover:!bg-[#B15F2C] transition-all"
+          className="!w-3.5 !h-3.5 !-left-2 !bg-[#FFFFFF] !border-2 !border-[#B15F2C] hover:!scale-125 transition-all shadow-subtle"
         />
       )}
 
       {/* Header */}
-      <div className="p-3.5 pb-2.5 flex items-center justify-between border-b border-[#E6E5E2]/80">
+      <div className="p-3.5 pb-2.5 flex items-center justify-between border-b border-[#EAE8E5]">
         <div className="flex items-center gap-2">
-          <div className={`w-7 h-7 rounded-xl ${badge.bg} border ${badge.border} flex items-center justify-center flex-shrink-0`}>
+          <div className={`w-7 h-7 rounded-xl ${badge.bg} border ${badge.border} flex items-center justify-center flex-shrink-0 shadow-subtle`}>
             {getNodeIcon(nodeData.componentType)}
           </div>
-          <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${badge.bg} ${badge.text}`}>
-            {nodeData.componentType}
+          <span className={`text-[10px] font-bold tracking-tight px-1.5 py-0.5 rounded-md ${badge.bg} ${badge.text}`}>
+            {displayTitle}
           </span>
         </div>
 
@@ -123,7 +144,7 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
             </span>
           )}
           {nodeData.status === 'ready' && (
-            <span className="text-[10px] text-[#8D8D8D] bg-[#F1F0EE] px-2 py-0.5 rounded-full font-medium">
+            <span className="text-[10px] text-[#777777] bg-[#F7F6F4] border border-[#EAE8E5] px-2 py-0.5 rounded-full font-medium">
               Ready
             </span>
           )}
@@ -135,7 +156,7 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
         <h4 className="font-bold text-xs text-[#111111] leading-tight group-hover:text-[#B15F2C] transition-colors truncate">
           {nodeData.label}
         </h4>
-        <p className="text-[11px] text-[#8D8D8D] line-clamp-2 leading-relaxed">
+        <p className="text-[11px] text-[#777777] line-clamp-2 leading-relaxed">
           {nodeData.description}
         </p>
 
@@ -149,8 +170,8 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
       </div>
 
       {/* Node Mini Footer / Action Toolbar on Hover */}
-      <div className="px-3.5 py-2 bg-[#F1F0EE]/50 border-t border-[#E6E5E2]/80 rounded-b-2xl flex items-center justify-between text-[10px] text-[#8D8D8D]">
-        <span className="truncate max-w-[120px]">
+      <div className="px-3.5 py-2 bg-[#F7F6F4] border-t border-[#EAE8E5] rounded-b-2xl flex items-center justify-between text-[10px] text-[#777777]">
+        <span className="truncate max-w-[120px] font-medium">
           {nodeData.config?.model || nodeData.config?.inputType || 'Configured'}
         </span>
 
@@ -183,11 +204,11 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
         <Handle
           type="source"
           position={Position.Right}
-          className="!w-3 !h-3 !-right-1.5 !bg-white !border-2 !border-[#B15F2C] hover:!bg-[#B15F2C] transition-all"
+          className="!w-3.5 !h-3.5 !-right-2 !bg-[#FFFFFF] !border-2 !border-[#B15F2C] hover:!scale-125 transition-all shadow-subtle"
         />
       )}
 
-      {/* Special Branch Handles for Condition Node */}
+      {/* Special Branch Handles for Decision (Condition) Node */}
       {isCondition && (
         <>
           <Handle
@@ -195,18 +216,19 @@ export const CustomWorkflowNode: React.FC<NodeProps> = memo(({ id, data, selecte
             type="source"
             position={Position.Right}
             style={{ top: '38%' }}
-            className="!w-3 !h-3 !-right-1.5 !bg-emerald-500 !border-2 !border-white hover:scale-125 transition-all"
+            className="!w-3.5 !h-3.5 !-right-2 !bg-emerald-500 !border-2 !border-white hover:!scale-125 transition-all shadow-subtle"
+            title="True path"
           />
           <Handle
             id="false"
             type="source"
             position={Position.Right}
             style={{ top: '68%' }}
-            className="!w-3 !h-3 !-right-1.5 !bg-rose-500 !border-2 !border-white hover:scale-125 transition-all"
+            className="!w-3.5 !h-3.5 !-right-2 !bg-rose-500 !border-2 !border-white hover:!scale-125 transition-all shadow-subtle"
+            title="False path"
           />
         </>
       )}
     </div>
   );
 });
-

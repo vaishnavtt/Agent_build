@@ -17,23 +17,52 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Sleek Apple Style */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #F1F0EE;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E3E2DF;
+  background: #EAE8E5;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #CF8047;
+}
+
+/* Liquid Glass Utilities */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(234, 232, 229, 0.9);
+}
+
+.liquid-glass-elevated {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.05);
+}
+
+.liquid-card {
+  background: #FFFFFF;
+  border: 1px solid #EAE8E5;
+  border-radius: 20px;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-card:hover {
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+  border-color: rgba(207, 128, 71, 0.35);
 }
 
 /* React Flow Light Theme Enhancements */
@@ -66,23 +95,24 @@
 }
 
 .react-flow__controls {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #E6E5E2;
-  background-color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid #EAE8E5 !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(12px) !important;
 }
 
 .react-flow__controls-button {
-  background-color: #FFFFFF !important;
-  border-bottom: 1px solid #E6E5E2 !important;
+  background-color: transparent !important;
+  border-bottom: 1px solid #EAE8E5 !important;
   color: #111111 !important;
-  width: 28px !important;
-  height: 28px !important;
+  width: 32px !important;
+  height: 32px !important;
 }
 
 .react-flow__controls-button:hover {
-  background-color: #F1F0EE !important;
+  background-color: #F7F6F4 !important;
 }
 
 .react-flow__controls-button svg {
@@ -90,11 +120,12 @@
 }
 
 .react-flow__minimap {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #E6E5E2;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
-  background-color: #FFFFFF !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  border: 1px solid #EAE8E5 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(12px) !important;
 }
 
 /* Animation helpers */
@@ -151,9 +182,10 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-liquid-ripple,
   .animate-liquid-shimmer,
-  .animate-pulse-subtle {
+  .animate-pulse-subtle,
+  .liquid-card {
     animation: none !important;
     transition: none !important;
+    transform: none !important;
   }
 }
-
