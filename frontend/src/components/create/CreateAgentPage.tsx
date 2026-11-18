@@ -182,11 +182,9 @@ export const CreateAgentPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-9 h-9 rounded-2xl ${
-                    isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
-                  } text-white flex items-center justify-center shadow-subtle ${
-                    isGenerating ? 'animate-spin' : ''
-                  }`}
+                  className={`w-9 h-9 rounded-2xl ${isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
+                    } text-white flex items-center justify-center shadow-subtle ${isGenerating ? 'animate-spin' : ''
+                    }`}
                 >
                   {isComplete ? <CheckCircle2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                 </div>
@@ -209,9 +207,8 @@ export const CreateAgentPage: React.FC = () => {
             {/* Step Progress Line */}
             <div className="w-full bg-[#EAE8E5] h-1.5 rounded-full overflow-hidden">
               <div
-                className={`h-full transition-all duration-500 rounded-full ${
-                  isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
-                }`}
+                className={`h-full transition-all duration-500 rounded-full ${isComplete ? 'bg-emerald-600' : 'bg-[#B15F2C]'
+                  }`}
                 style={{ width: `${(generationStep / 4) * 100}%` }}
               />
             </div>
@@ -225,13 +222,12 @@ export const CreateAgentPage: React.FC = () => {
                 return (
                   <div
                     key={st.number}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${
-                      isDone
+                    className={`p-3.5 rounded-2xl border transition-all flex items-start gap-3 ${isDone
                         ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
                         : isCurrent
-                        ? 'bg-white border-[#B15F2C] shadow-subtle text-[#111111] ring-1 ring-[#B15F2C]'
-                        : 'bg-white/60 border-[#EAE8E5] text-[#777777]'
-                    }`}
+                          ? 'bg-white border-[#B15F2C] shadow-subtle text-[#111111] ring-1 ring-[#B15F2C]'
+                          : 'bg-white/60 border-[#EAE8E5] text-[#777777]'
+                      }`}
                   >
                     <div className="pt-0.5">
                       {isDone ? (
