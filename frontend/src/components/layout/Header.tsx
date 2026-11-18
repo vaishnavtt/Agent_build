@@ -244,7 +244,7 @@ export const Header: React.FC = () => {
             className="flex items-center gap-1.5 p-1 rounded-xl hover:bg-[#F1F0EE] transition-colors"
           >
             <div className="w-7 h-7 rounded-full bg-[#0A0A0A] text-white font-bold text-xs flex items-center justify-center">
-              V
+              AU
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#8D8D8D] hidden sm:block" />
           </button>
@@ -252,8 +252,8 @@ export const Header: React.FC = () => {
           {profileOpen && (
             <div className="absolute right-0 mt-2 w-52 bg-[#FFFFFF] rounded-2xl shadow-elevated border border-[#E6E5E2] p-2 z-50 text-xs">
               <div className="px-3 py-2 border-b border-[#E6E5E2] mb-1">
-                <p className="font-semibold text-[#111111]">Vaishnav T</p>
-                <p className="text-[10px] text-[#8D8D8D]">vaishnaaa90@gmail.com</p>
+                <p className="font-semibold text-[#111111]">AgentForge User</p>
+                <p className="text-[10px] text-[#8D8D8D]">user@agentforge.ai</p>
               </div>
               <button
                 onClick={() => {

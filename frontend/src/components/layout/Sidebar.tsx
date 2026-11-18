@@ -151,14 +151,14 @@ export const Sidebar: React.FC = () => {
           {/* User Profile Card */}
           <div className="flex items-center gap-3 p-2.5 rounded-xl bg-[#F1F0EE]/80 border border-[#E6E5E2]">
             <div className="w-8 h-8 rounded-full bg-[#0A0A0A] text-white font-semibold text-xs flex items-center justify-center flex-shrink-0">
-              V
+              AU
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#111111] truncate">Vaishnav T</p>
-                <span className="text-[9px] bg-emerald-100 text-emerald-800 font-medium px-1 rounded">PRO</span>
+                <p className="text-xs font-semibold text-[#111111] truncate">AgentForge User</p>
+                <span className="text-[9px] bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 font-semibold px-1 rounded">DEMO</span>
               </div>
-              <p className="text-[10px] text-[#8D8D8D] truncate">vaishnaaa90@gmail.com</p>
+              <p className="text-[10px] text-[#8D8D8D] truncate">user@agentforge.ai</p>
             </div>
           </div>
         </div>
