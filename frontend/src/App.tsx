@@ -1,58 +1,78 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Navbar } from './components/Navbar';
-import { Dashboard } from './components/Dashboard';
+import React from 'react';
+import { WorkflowProvider, useWorkflow } from './context/WorkflowContext';
+import { Sidebar } from './components/layout/Sidebar';
+import { Header } from './components/layout/Header';
+import { HelpModal } from './components/layout/HelpModal';
+import { ToastContainer } from './components/common/ToastContainer';
+import { DashboardPage } from './components/dashboard/DashboardPage';
+import { CreateAgentPage } from './components/create/CreateAgentPage';
+import { WorkflowEditorPage } from './components/editor/WorkflowEditorPage';
+import { WorkflowValidationPage } from './components/validation/WorkflowValidationPage';
+import { ExecutionMonitorPage } from './components/activity/ExecutionMonitorPage';
+import { ExecutionHistoryPage } from './components/history/ExecutionHistoryPage';
+import { MyAgentsPage } from './components/agents/MyAgentsPage';
+import { TemplatesPage } from './components/templates/TemplatesPage';
+import { SettingsPage } from './components/settings/SettingsPage';
 
-export function App() {
-  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
-  const [checkingHealth, setCheckingHealth] = useState<boolean>(false);
+const AppContent: React.FC = () => {
+  const { currentPage } = useWorkflow();
 
-  const checkBackendHealth = useCallback(async () => {
-    setCheckingHealth(true);
-    try {
-      // Primary check via Vite dev proxy (/api/v1/health) or fallback to direct port 8000
-      let response: Response;
-      try {
-        response = await fetch('/api/v1/health', { method: 'GET' });
-      } catch {
-        response = await fetch('http://localhost:8000/api/v1/health', { method: 'GET' });
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        setBackendOnline(data.status === 'ok');
-      } else {
-        setBackendOnline(false);
-      }
-    } catch {
-      setBackendOnline(false);
-    } finally {
-      setCheckingHealth(false);
+  const renderActiveView = () => {
+    switch (currentPage) {
+      case 'dashboard':
+        return <DashboardPage />;
+      case 'create-agent':
+        return <CreateAgentPage />;
+      case 'editor':
+        return <WorkflowEditorPage />;
+      case 'validation':
+        return <WorkflowValidationPage />;
+      case 'activity':
+        return <ExecutionMonitorPage />;
+      case 'history':
+        return <ExecutionHistoryPage />;
+      case 'my-agents':
+        return <MyAgentsPage />;
+      case 'templates':
+        return <TemplatesPage />;
+      case 'settings':
+        return <SettingsPage />;
+      default:
+        return <DashboardPage />;
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    checkBackendHealth();
-  }, [checkBackendHealth]);
+  const isEditor = currentPage === 'editor';
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
-      <Navbar
-        backendOnline={backendOnline}
-        onRefreshHealth={checkBackendHealth}
-        checkingHealth={checkingHealth}
-      />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Dashboard />
-      </main>
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-600">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 AgentForge AI Team. All rights reserved.</p>
-          <p className="font-mono text-slate-500">React • Vite • TypeScript • Tailwind CSS • React Flow • FastAPI</p>
-        </div>
-      </footer>
+    <div className="min-h-screen bg-[#FFFFFF] text-[#111111] font-sans antialiased flex flex-col">
+      {/* Persistent Left Sidebar */}
+      <Sidebar />
+
+      {/* Main Content Area */}
+      <div className="lg:pl-64 flex flex-col flex-1 min-h-screen">
+        {/* Main Header */}
+        <Header />
+
+        {/* Dynamic Page Views */}
+        <main className={`flex-1 ${isEditor ? 'overflow-hidden' : 'p-4 sm:p-6 lg:p-8'}`}>
+          {renderActiveView()}
+        </main>
+      </div>
+
+      {/* Global Modals & Notifications */}
+      <HelpModal />
+      <ToastContainer />
     </div>
+  );
+};
+
+export function App() {
+  return (
+    <WorkflowProvider>
+      <AppContent />
+    </WorkflowProvider>
   );
 }
 
 export default App;
-
