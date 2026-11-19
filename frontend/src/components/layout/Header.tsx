@@ -11,8 +11,10 @@ import {
   Info,
   Server,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
+import { ElevatedButton } from '../common/ElevatedButton';
 
 export const Header: React.FC = () => {
   const {
@@ -26,6 +28,7 @@ export const Header: React.FC = () => {
     isValidating,
     backendStatus,
     checkBackendHealth,
+    setIsHelpOpen,
   } = useWorkflow();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -35,57 +38,102 @@ export const Header: React.FC = () => {
   const getPageInfo = () => {
     switch (currentPage) {
       case 'dashboard':
-        return { title: 'Dashboard', breadcrumb: 'Overview' };
+        return {
+          title: 'Home',
+          subtitle: 'Create intelligent AI assistants without writing code.',
+          breadcrumb: 'Overview',
+        };
       case 'my-agents':
-        return { title: 'My Agents', breadcrumb: 'Workspace' };
+        return {
+          title: 'My AI Agents',
+          subtitle: 'Inspect, customize, and launch your assistants.',
+          breadcrumb: 'My Agents',
+        };
       case 'create-agent':
-        return { title: 'Create Agent', breadcrumb: 'Natural Language Builder' };
+        return {
+          title: 'Create Your Agent',
+          subtitle: 'Describe what you want your assistant to do in plain words.',
+          breadcrumb: 'Guided Creation',
+        };
       case 'editor':
-        return { title: activeAgentName, breadcrumb: 'Workflow Studio' };
+        return {
+          title: activeAgentName || 'Build Your Agent',
+          subtitle: 'Connect building blocks to show how your agent works.',
+          breadcrumb: 'Build Your Agent',
+        };
       case 'validation':
-        return { title: 'Check Your Agent', breadcrumb: 'Verification & Tests' };
+        return {
+          title: 'Check My Agent',
+          subtitle: "Let's make sure everything is ready before your assistant starts.",
+          breadcrumb: 'Check My Agent',
+        };
       case 'activity':
-        return { title: 'Agent Activity', breadcrumb: 'Live Monitor & Self-Repair' };
+        return {
+          title: 'Watch Your Agent Work',
+          subtitle: 'Live execution timeline, problem detection, and auto-repair.',
+          breadcrumb: 'Watch Your Agent Work',
+        };
       case 'history':
-        return { title: 'Execution History', breadcrumb: 'Activity Log' };
+        return {
+          title: 'Execution History',
+          subtitle: 'Audit past runs, durations, and auto-repair results.',
+          breadcrumb: 'History',
+        };
       case 'templates':
-        return { title: 'Agent Templates', breadcrumb: 'Quick Start' };
+        return {
+          title: 'Ready-Made Agents',
+          subtitle: 'Pick a pre-built recipe to start in seconds.',
+          breadcrumb: 'Templates',
+        };
       case 'settings':
-        return { title: 'Settings', breadcrumb: 'System Preferences' };
+        return {
+          title: 'Settings',
+          subtitle: 'Configure AI intelligence engine, limits, and repair policies.',
+          breadcrumb: 'Settings',
+        };
       default:
-        return { title: 'AgentForge AI', breadcrumb: 'Platform' };
+        return {
+          title: 'AgentForge AI',
+          subtitle: 'Build your own AI agents without writing code.',
+          breadcrumb: 'Platform',
+        };
     }
   };
 
-  const { title, breadcrumb } = getPageInfo();
+  const { title, subtitle, breadcrumb } = getPageInfo();
 
   return (
-    <header className="h-16 px-4 sm:px-6 liquid-glass sticky top-0 z-30 flex items-center justify-between border-b border-[#EAE8E5]/80 transition-all">
-      {/* Left: Mobile Toggle & Clean Breadcrumb */}
+    <header className="h-16 px-4 sm:px-6 liquid-glass sticky top-0 z-30 flex items-center justify-between border-b border-[#EAE8E5]/80 transition-all select-none">
+      {/* Left: Mobile Toggle & Breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="p-2 rounded-xl text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] lg:hidden transition-colors"
+          className="p-2 rounded-2xl text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] lg:hidden transition-colors"
           aria-label="Open Sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
 
         <div>
-          <div className="flex items-center gap-2 text-[11px] text-[#777777] font-medium">
+          <div className="flex items-center gap-1.5 text-[11px] text-[#777777] font-medium">
             <span>AgentForge AI</span>
             <span className="text-[#D8D5D0]">/</span>
             <span className="text-[#B15F2C] font-semibold">{breadcrumb}</span>
           </div>
-          <h1 className="text-sm sm:text-base font-bold text-[#111111] tracking-tight truncate max-w-[200px] sm:max-w-md">
-            {title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm sm:text-base font-bold text-[#111111] tracking-tight truncate max-w-[200px] sm:max-w-md">
+              {title}
+            </h1>
+            <span className="hidden xl:inline text-xs text-[#777777]">
+              — {subtitle}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Right: Runtime Status, Quick Actions & Profile */}
+      {/* Right: Runtime Status, Quick Help & Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Runtime Status Pill (Apple Glass Lozenge) */}
+        {/* Runtime Status Pill */}
         <div className="relative">
           <button
             onClick={() => setDemoInfoOpen(!demoInfoOpen)}
@@ -97,168 +145,135 @@ export const Header: React.FC = () => {
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                backendStatus === 'connected' ? 'bg-emerald-600' : 'bg-[#B15F2C]'
-              } animate-pulse`}
+                backendStatus === 'connected' ? 'bg-emerald-600 animate-pulse' : 'bg-[#B15F2C]'
+              }`}
             />
-            <span>
-              {backendStatus === 'connected'
-                ? 'Live Backend Online'
-                : 'Demo Mode (Simulated)'}
-            </span>
-            <Info className="w-3 h-3 opacity-60" />
+            <span>{backendStatus === 'connected' ? 'Live Backend Connected' : 'Simulated Runtime Mode'}</span>
+            <Info className="w-3 h-3 text-[#777777]" />
           </button>
 
+          {/* Status Popover */}
           {demoInfoOpen && (
-            <div className="absolute right-0 mt-2 w-72 liquid-glass-elevated rounded-3xl p-4 z-50 text-xs animate-in fade-in space-y-2.5">
+            <div className="absolute right-0 mt-2 w-80 p-4 rounded-3xl bg-white border border-[#EAE8E5] shadow-elevated z-50 text-xs text-[#111111] space-y-2 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 border-b border-[#EAE8E5]">
-                <span className="font-bold text-[#111111] flex items-center gap-1.5">
-                  <Server className="w-3.5 h-3.5 text-[#B15F2C]" />
-                  <span>Runtime Environment</span>
-                </span>
+                <span className="font-bold">System Runtime Status</span>
                 <button
                   onClick={() => setDemoInfoOpen(false)}
-                  className="text-[#777777] hover:text-[#111111]"
+                  className="p-1 rounded-lg text-[#777777] hover:bg-[#F7F6F4]"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-
               <p className="text-[#777777] leading-relaxed">
-                {backendStatus === 'connected'
-                  ? 'Connected to local FastAPI backend on port 8000 with active SQLite database.'
-                  : 'Operating in Interactive Demo Mode with complete local state, visual workflow simulation, and autonomous self-repair.'}
+                AgentForge AI provides an autonomous visual workflow builder and execution engine.
               </p>
-
-              <div className="pt-2 border-t border-[#EAE8E5] flex items-center justify-between">
-                <button
-                  onClick={() => checkBackendHealth()}
-                  className="text-[11px] font-semibold text-[#B15F2C] hover:underline"
-                >
-                  Ping Backend Again ↺
-                </button>
-                <span className="text-[10px] text-[#777777] font-mono">v1.0.0</span>
+              <div className="p-2.5 rounded-2xl bg-[#F7F6F4] space-y-1 font-mono text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-[#777777]">Backend API:</span>
+                  <span className={backendStatus === 'connected' ? 'text-emerald-700 font-bold' : 'text-[#B15F2C] font-bold'}>
+                    {backendStatus === 'connected' ? 'ONLINE (Port 8000)' : 'STANDALONE (Port 5173)'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#777777]">AI Reasoning:</span>
+                  <span className="text-emerald-700 font-bold">Google Gemini API</span>
+                </div>
               </div>
+              <button
+                onClick={() => checkBackendHealth()}
+                className="w-full py-2 rounded-xl bg-[#FAF5F1] hover:bg-[#CF8047]/20 text-[#B15F2C] text-xs font-semibold border border-[#CF8047]/30 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Server className="w-3.5 h-3.5" />
+                <span>Re-check Backend Connection</span>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Quick Studio Action if not in Studio */}
-        {currentPage !== 'editor' && (
-          <button
-            onClick={() => setCurrentPage('editor')}
-            className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#0A0A0A] hover:bg-[#1F1F1F] text-white text-xs font-semibold shadow-subtle transition-all active:scale-[0.98]"
-          >
-            <Play className="w-3 h-3 fill-white" />
-            <span>Workflow Studio</span>
-          </button>
-        )}
+        {/* User Guide Pill */}
+        <button
+          onClick={() => setIsHelpOpen(true)}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F7F6F4] hover:bg-[#EAE8E5] text-[#111111] text-xs font-semibold border border-[#EAE8E5] transition-colors"
+          title="Open User Guide"
+        >
+          <HelpCircle className="w-3.5 h-3.5 text-[#B15F2C]" />
+          <span>Guide</span>
+        </button>
 
-        {/* Notifications Icon & Liquid Dropdown */}
+        {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="relative p-2.5 rounded-2xl text-[#777777] hover:text-[#111111] hover:bg-white/80 border border-transparent hover:border-[#EAE8E5] transition-all"
+            className="p-2 rounded-2xl text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] relative transition-colors"
             aria-label="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#B15F2C]" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#B15F2C]" />
           </button>
 
+          {/* Notifications Dropdown */}
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 liquid-glass-elevated rounded-3xl p-4 z-50 text-xs animate-in fade-in space-y-3">
+            <div className="absolute right-0 mt-2 w-72 p-3 rounded-3xl bg-white border border-[#EAE8E5] shadow-elevated z-50 text-xs text-[#111111] space-y-2 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 border-b border-[#EAE8E5]">
-                <span className="font-bold text-sm text-[#111111]">Notifications</span>
+                <span className="font-bold">Recent Updates</span>
                 <button
                   onClick={() => setNotificationsOpen(false)}
-                  className="text-[#777777] hover:text-[#111111]"
+                  className="p-1 rounded-lg text-[#777777] hover:bg-[#F7F6F4]"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-
-              <div className="divide-y divide-[#EAE8E5]/70 max-h-72 overflow-y-auto space-y-1">
-                <div className="py-2.5">
-                  <div className="flex items-center gap-1.5 text-emerald-800 font-semibold mb-0.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Requirement Coverage Verified</span>
-                  </div>
-                  <p className="text-[11px] text-[#777777] leading-relaxed">
-                    All candidate screening requirements are mapped to workflow components.
-                  </p>
-                  <span className="text-[10px] text-[#777777] mt-1 block">5 minutes ago</span>
+              <div className="space-y-2">
+                <div className="p-2.5 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                  <p className="font-semibold text-emerald-900">Agent Verified</p>
+                  <p className="text-[11px] text-emerald-700">Resume Screener passed all 4 test cases.</p>
                 </div>
-
-                <div className="py-2.5">
-                  <div className="flex items-center gap-1.5 text-[#B15F2C] font-semibold mb-0.5">
-                    <Wrench className="w-3.5 h-3.5 text-[#B15F2C]" />
-                    <span>Auto-Repair Available</span>
-                  </div>
-                  <p className="text-[11px] text-[#777777] leading-relaxed">
-                    AgentForge AI detected missing instructions and prepared a 1-click fix.
-                  </p>
-                  <span className="text-[10px] text-[#777777] mt-1 block">15 minutes ago</span>
+                <div className="p-2.5 rounded-2xl bg-[#FAF5F1] border border-[#CF8047]/30">
+                  <p className="font-semibold text-[#B15F2C]">Autonomous Repair Ready</p>
+                  <p className="text-[11px] text-[#777777]">Self-repair engine standby (max 2 attempts).</p>
                 </div>
-              </div>
-
-              <div className="pt-2 text-center border-t border-[#EAE8E5]">
-                <button
-                  onClick={() => {
-                    setCurrentPage('activity');
-                    setNotificationsOpen(false);
-                  }}
-                  className="text-[11px] text-[#B15F2C] font-semibold hover:underline"
-                >
-                  View Activity & Self-Repair →
-                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Profile Avatar & Mini Menu */}
+        {/* Profile Avatar & Menu */}
         <div className="relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="flex items-center gap-1.5 p-1 rounded-2xl hover:bg-white/80 border border-transparent hover:border-[#EAE8E5] transition-all"
+            className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-full hover:bg-[#F7F6F4] transition-colors border border-transparent hover:border-[#EAE8E5]"
           >
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#0A0A0A] to-[#2B2B2B] text-white font-bold text-xs flex items-center justify-center shadow-subtle">
               AU
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-[#777777] hidden sm:block" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#777777]" />
           </button>
 
+          {/* Profile Dropdown */}
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-56 liquid-glass-elevated rounded-3xl p-2.5 z-50 text-xs shadow-glass-hover">
-              <div className="px-3 py-2 border-b border-[#EAE8E5] mb-1">
-                <p className="font-bold text-[#111111]">AgentForge User</p>
-                <p className="text-[10px] text-[#777777]">user@agentforge.ai</p>
+            <div className="absolute right-0 mt-2 w-56 p-2 rounded-3xl bg-white border border-[#EAE8E5] shadow-elevated z-50 text-xs text-[#111111] space-y-1 animate-in fade-in">
+              <div className="p-3 border-b border-[#EAE8E5]">
+                <p className="font-bold text-xs text-[#111111]">AgentForge User</p>
+                <p className="text-[11px] text-[#777777]">user@agentforge.ai</p>
               </div>
               <button
                 onClick={() => {
-                  setCurrentPage('settings');
                   setProfileOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded-xl text-[#111111] hover:bg-[#F7F6F4] transition-colors"
-              >
-                Settings & Preferences
-              </button>
-              <button
-                onClick={() => {
                   setCurrentPage('my-agents');
-                  setProfileOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-xl text-[#111111] hover:bg-[#F7F6F4] transition-colors"
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#F7F6F4] text-xs transition-colors"
               >
-                My Saved Agents
+                My AI Agents
               </button>
-              <div className="border-t border-[#EAE8E5] mt-1 pt-1">
-                <button
-                  onClick={() => setProfileOpen(false)}
-                  className="w-full text-left px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors font-medium"
-                >
-                  Log out
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setProfileOpen(false);
+                  setCurrentPage('settings');
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl hover:bg-[#F7F6F4] text-xs transition-colors"
+              >
+                System Preferences
+              </button>
             </div>
           )}
         </div>

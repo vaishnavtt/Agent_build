@@ -10,35 +10,49 @@ import {
   ChevronDown,
   ChevronUp,
   Sliders,
-  Info,
+  HelpCircle,
+  FileText,
+  Bot,
+  GitFork,
+  UserCheck,
+  Wrench,
+  FileOutput,
+  FileInput,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { WorkflowNodeData, ComponentType } from '../../types';
-import { LiquidButton } from '../common/LiquidButton';
+import { ElevatedButton } from '../common/ElevatedButton';
 
-const getDisplayTitle = (type: ComponentType): string => {
+const getBlockHeader = (type: ComponentType) => {
   switch (type) {
     case 'Input':
-      return 'Input Settings';
+      return { tag: 'START', title: 'Start Settings', icon: FileInput, desc: 'Where the information begins' };
     case 'Document Reader':
-      return 'PDF Reader Settings';
+      return { tag: 'READ', title: 'Read Document Settings', icon: FileText, desc: 'How documents are read' };
     case 'LLM':
-      return 'AI Assistant Settings';
+      return { tag: 'THINK', title: 'AI Assistant Settings', icon: Bot, desc: 'What the assistant understands' };
     case 'Condition':
-      return 'Decision Settings';
-    case 'Human Approval':
-      return 'Human Approval Settings';
+      return { tag: 'DECIDE', title: 'Decision Rule Settings', icon: GitFork, desc: 'Choose what happens next' };
     case 'Tool':
-      return 'Tool Settings';
+      return { tag: 'DO', title: 'Action Settings', icon: Wrench, desc: 'Perform an external action' };
+    case 'Human Approval':
+      return { tag: 'APPROVE', title: 'Approval Settings', icon: UserCheck, desc: 'Ask me before continuing' };
     case 'Output':
-      return 'Output Settings';
+      return { tag: 'FINISH', title: 'Result Settings', icon: FileOutput, desc: 'Where the output goes' };
     default:
-      return `${type} Settings`;
+      return { tag: 'STEP', title: 'Step Settings', icon: Settings2, desc: 'Configure step parameters' };
   }
 };
 
 export const ComponentSettings: React.FC = () => {
-  const { selectedNode, setSelectedNode, updateNodeConfig, deleteNode, duplicateNode, showToast } = useWorkflow();
+  const {
+    selectedNode,
+    setSelectedNode,
+    updateNodeConfig,
+    deleteNode,
+    duplicateNode,
+    showToast,
+  } = useWorkflow();
 
   const [label, setLabel] = useState('');
   const [config, setConfig] = useState<Record<string, any>>({});
@@ -54,13 +68,13 @@ export const ComponentSettings: React.FC = () => {
 
   if (!selectedNode) {
     return (
-      <div className="w-80 bg-[#FFFFFF] border-l border-[#EAE8E5] flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="w-12 h-12 rounded-2xl bg-[#F7F6F4] text-[#777777] border border-[#EAE8E5] flex items-center justify-center mb-3 shadow-subtle">
+      <div className="w-80 bg-white border-l border-[#EAE8E5] flex flex-col items-center justify-center p-6 text-center select-none shadow-subtle">
+        <div className="w-14 h-14 rounded-3xl bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 flex items-center justify-center mb-3 shadow-[0_3px_0_#EAE8E5,0_8px_16px_rgba(0,0,0,0.03)]">
           <Settings2 className="w-6 h-6" />
         </div>
-        <h4 className="font-bold text-sm text-[#111111]">No Component Selected</h4>
-        <p className="text-xs text-[#777777] mt-1.5 max-w-[210px] leading-relaxed">
-          Click any component on the visual canvas to inspect or adjust what it does.
+        <h4 className="font-extrabold text-sm text-[#111111]">No Step Selected</h4>
+        <p className="text-xs text-[#777777] mt-1.5 max-w-[220px] leading-relaxed">
+          Click any building block on the canvas to customize what it does.
         </p>
       </div>
     );
@@ -68,10 +82,12 @@ export const ComponentSettings: React.FC = () => {
 
   const nodeData = selectedNode.data as unknown as WorkflowNodeData;
   const { componentType } = nodeData;
+  const header = getBlockHeader(componentType);
+  const Icon = header.icon;
 
   const handleSave = () => {
     updateNodeConfig(selectedNode.id, label, config);
-    showToast('Settings Saved', `${label || componentType} settings updated`, 'success');
+    showToast('Saved', `Updated settings for "${label || header.title}"`, 'success');
   };
 
   const handleConfigChange = (field: string, value: any) => {
@@ -79,22 +95,28 @@ export const ComponentSettings: React.FC = () => {
   };
 
   return (
-    <div className="w-80 bg-[#FFFFFF] border-l border-[#EAE8E5] flex flex-col h-full overflow-hidden select-none">
+    <div className="w-80 bg-white border-l border-[#EAE8E5] flex flex-col h-full overflow-hidden select-none shadow-subtle">
       {/* Panel Header */}
       <div className="p-4 border-b border-[#EAE8E5] flex items-center justify-between bg-[#FAF5F1]">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-[#B15F2C] text-white flex items-center justify-center shadow-subtle">
-            <Settings2 className="w-4 h-4" />
+          <div className="w-8 h-8 rounded-2xl bg-[#B15F2C] text-white flex items-center justify-center shadow-subtle">
+            <Icon className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="font-bold text-xs text-[#111111]">{getDisplayTitle(componentType)}</h3>
-            <span className="text-[10px] text-[#B15F2C] font-semibold">Active Component</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#B15F2C] border border-[#CF8047]/30">
+                {header.tag}
+              </span>
+              <h3 className="font-extrabold text-xs text-[#111111]">Customize This Step</h3>
+            </div>
+            <p className="text-[10px] text-[#777777] mt-0.5">{header.desc}</p>
           </div>
         </div>
 
         <button
           onClick={() => setSelectedNode(null)}
-          className="p-1 rounded-lg text-[#777777] hover:text-[#111111] hover:bg-[#F7F6F4] transition-colors"
+          className="p-1 rounded-xl text-[#777777] hover:text-[#111111] hover:bg-white transition-colors"
+          title="Close panel"
         >
           <X className="w-4 h-4" />
         </button>
@@ -102,88 +124,90 @@ export const ComponentSettings: React.FC = () => {
 
       {/* Form Fields */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
-        {/* Component Display Label */}
+        {/* Step Display Label */}
         <div className="space-y-1.5">
-          <label className="font-semibold text-[#111111]">Display Name</label>
+          <label className="font-bold text-[#111111]">Step Name</label>
           <input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all"
+            className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
           />
-          <p className="text-[10px] text-[#777777]">Name visible on the visual workspace.</p>
+          <p className="text-[10px] text-[#777777]">Name shown on the building block card.</p>
         </div>
 
-        {/* AI Assistant Specific Settings */}
+        {/* AI Assistant (THINK) Settings */}
         {componentType === 'LLM' && (
           <>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">AI Intelligence Level</label>
+              <label className="font-bold text-[#111111]">Assistant Intelligence</label>
               <select
                 value={config.model || 'Gemini 1.5 Pro (Recommended)'}
                 onChange={(e) => handleConfigChange('model', e.target.value)}
-                className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF]"
+                className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white"
               >
-                <option value="Gemini 1.5 Pro (Recommended)">Gemini 1.5 Pro (Smartest - deep reasoning)</option>
-                <option value="Gemini 1.5 Flash (Fast)">Gemini 1.5 Flash (Fast & lightweight)</option>
+                <option value="Gemini 1.5 Pro (Recommended)">Gemini 1.5 Pro (Best for reasoning)</option>
+                <option value="Gemini 1.5 Flash (Fast)">Gemini 1.5 Flash (Fastest)</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="font-semibold text-[#111111]">What should this assistant do?</label>
-                <span className="text-[10px] text-[#B15F2C] font-semibold">Important</span>
+                <label className="font-bold text-[#111111]">What should this assistant do?</label>
+                <span className="text-[9px] font-bold text-[#B15F2C] bg-[#FAF5F1] px-1.5 py-0.5 rounded border border-[#CF8047]/30">
+                  Required
+                </span>
               </div>
               <textarea
                 rows={4}
                 value={config.instructions || ''}
                 onChange={(e) => handleConfigChange('instructions', e.target.value)}
-                placeholder="Give clear, plain English instructions... e.g. Analyze candidate skills in React, TypeScript, Python and score alignment from 1 to 10."
-                className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl p-3 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] resize-none leading-relaxed transition-all"
+                placeholder="Explain in plain words... e.g. Read the candidate skills in React, TypeScript, and Python, then score fitness from 1 to 10."
+                className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl p-3 focus:outline-none focus:border-[#B15F2C] focus:bg-white resize-none leading-relaxed transition-all shadow-subtle"
               />
               <p className="text-[10px] text-[#777777]">
-                Explain in ordinary words what this assistant should look for and decide.
+                Explain what you want the assistant to look for and decide.
               </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Creativity Level</label>
+              <label className="font-bold text-[#111111]">Creativity Level</label>
               <select
                 value={config.creativity || 'Balanced (0.4)'}
                 onChange={(e) => handleConfigChange('creativity', e.target.value)}
                 className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2 focus:outline-none focus:border-[#B15F2C]"
               >
-                <option value="Precise & Factual (0.0)">Precise & Factual (strict analysis)</option>
+                <option value="Precise & Factual (0.0)">Precise & Factual (Strict matching)</option>
                 <option value="Balanced (0.4)">Balanced (Recommended)</option>
-                <option value="Creative (0.8)">Creative (for writing & drafting)</option>
+                <option value="Creative (0.8)">Creative (For writing & ideas)</option>
               </select>
             </div>
           </>
         )}
 
-        {/* PDF Reader Settings */}
+        {/* Read Document (READ) Settings */}
         {componentType === 'Document Reader' && (
           <>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Where does the document come from?</label>
+              <label className="font-bold text-[#111111]">Where does the document come from?</label>
               <select
                 value={config.sourceInput || 'From User Input'}
                 onChange={(e) => handleConfigChange('sourceInput', e.target.value)}
                 className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2"
               >
-                <option value="From User Input">Uploaded by user in the first step</option>
-                <option value="Fixed Sample File">Fixed sample resume (demo test)</option>
+                <option value="From User Input">Connected document from Start step</option>
+                <option value="Fixed Sample File">Fixed sample resume (Demo)</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">What information should we read?</label>
+              <label className="font-bold text-[#111111]">What should we read?</label>
               <select
                 value={config.extractionMode || 'Text & Structured Sections'}
                 onChange={(e) => handleConfigChange('extractionMode', e.target.value)}
                 className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2"
               >
-                <option value="Text & Structured Sections">All text and section headings</option>
+                <option value="Text & Structured Sections">All text and headings</option>
                 <option value="Full Text Only">Raw text only</option>
                 <option value="Tables & Metrics">Tables & Key Metrics</option>
               </select>
@@ -191,22 +215,22 @@ export const ComponentSettings: React.FC = () => {
           </>
         )}
 
-        {/* Decision (Condition) Settings */}
+        {/* Decision (DECIDE) Settings */}
         {componentType === 'Condition' && (
           <>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">What should we check?</label>
+              <label className="font-bold text-[#111111]">What should we check?</label>
               <input
                 type="text"
                 value={config.fieldToCheck || 'fit_score'}
                 onChange={(e) => handleConfigChange('fieldToCheck', e.target.value)}
                 className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2"
               />
-              <p className="text-[10px] text-[#777777]">The information produced by the previous step (e.g. score).</p>
+              <p className="text-[10px] text-[#777777]">The information to evaluate (e.g. fit_score).</p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Rule to follow</label>
+              <label className="font-bold text-[#111111]">Rule to follow</label>
               <select
                 value={config.rule || 'Greater Than or Equal To'}
                 onChange={(e) => handleConfigChange('rule', e.target.value)}
@@ -214,12 +238,12 @@ export const ComponentSettings: React.FC = () => {
               >
                 <option value="Greater Than or Equal To">Greater Than or Equal To (≥)</option>
                 <option value="Equals">Exactly Equals (=)</option>
-                <option value="Contains Text">Contains specific text</option>
+                <option value="Contains Text">Contains specific word</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Target Value</label>
+              <label className="font-bold text-[#111111]">Target Value</label>
               <input
                 type="text"
                 value={config.targetValue || '7'}
@@ -230,11 +254,11 @@ export const ComponentSettings: React.FC = () => {
           </>
         )}
 
-        {/* Human Approval Settings */}
+        {/* Human Approval (APPROVE) Settings */}
         {componentType === 'Human Approval' && (
           <>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Question for the reviewer</label>
+              <label className="font-bold text-[#111111]">Question for the reviewer</label>
               <textarea
                 rows={3}
                 value={config.approvalPrompt || 'Please review candidate score before the invite is dispatched.'}
@@ -243,7 +267,7 @@ export const ComponentSettings: React.FC = () => {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Wait time before warning (Hours)</label>
+              <label className="font-bold text-[#111111]">Wait limit (Hours)</label>
               <input
                 type="number"
                 value={config.timeoutHours || 24}
@@ -254,11 +278,11 @@ export const ComponentSettings: React.FC = () => {
           </>
         )}
 
-        {/* Output Settings */}
+        {/* Output (FINISH) Settings */}
         {componentType === 'Output' && (
           <>
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">How should results look?</label>
+              <label className="font-bold text-[#111111]">How should results look?</label>
               <select
                 value={config.format || 'Formatted Summary & Scorecard'}
                 onChange={(e) => handleConfigChange('format', e.target.value)}
@@ -272,7 +296,7 @@ export const ComponentSettings: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-[#111111]">Where should results go?</label>
+              <label className="font-bold text-[#111111]">Where should results go?</label>
               <input
                 type="text"
                 value={config.destination || 'Display in Dashboard & Email Candidate Brief'}
@@ -283,26 +307,26 @@ export const ComponentSettings: React.FC = () => {
           </>
         )}
 
-        {/* Input Settings */}
+        {/* Start (START) Settings */}
         {componentType === 'Input' && (
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#111111]">Input Type</label>
+            <label className="font-bold text-[#111111]">Input Type</label>
             <select
               value={config.inputType || 'File Upload (PDF / Doc)'}
               onChange={(e) => handleConfigChange('inputType', e.target.value)}
               className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2"
             >
               <option value="File Upload (PDF / Doc)">Document or Resume Upload</option>
-              <option value="Text Prompt">Typed text or message</option>
+              <option value="Text Prompt">Typed text or question</option>
               <option value="JSON Webhook Payload">Incoming web data</option>
             </select>
           </div>
         )}
 
-        {/* Tool Settings */}
+        {/* Tool (DO) Settings */}
         {componentType === 'Tool' && (
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#111111]">What tool should run?</label>
+            <label className="font-bold text-[#111111]">What action should run?</label>
             <select
               value={config.operation || 'Candidate Database Sync'}
               onChange={(e) => handleConfigChange('operation', e.target.value)}
@@ -316,12 +340,12 @@ export const ComponentSettings: React.FC = () => {
           </div>
         )}
 
-        {/* Collapsible Advanced Settings Accordion for Non-Technical Users */}
+        {/* Collapsible Advanced Settings (Keeps interface uncluttered) */}
         <div className="pt-2 border-t border-[#EAE8E5]">
           <button
             type="button"
             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            className="w-full flex items-center justify-between text-xs font-semibold text-[#777777] hover:text-[#111111] py-1"
+            className="w-full flex items-center justify-between text-xs font-bold text-[#777777] hover:text-[#111111] py-1 transition-colors"
           >
             <span className="flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-[#B15F2C]" />
@@ -331,32 +355,32 @@ export const ComponentSettings: React.FC = () => {
           </button>
 
           {isAdvancedOpen && (
-            <div className="mt-3 space-y-3 p-3 rounded-2xl bg-[#F7F6F4] border border-[#EAE8E5]">
+            <div className="mt-3 space-y-3 p-3 rounded-2xl bg-[#F7F6F4] border border-[#EAE8E5] animate-in fade-in">
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-[#777777]">Component ID</label>
-                <div className="font-mono text-[10px] text-[#111111] p-1.5 rounded-lg bg-[#FFFFFF] border border-[#EAE8E5]">
+                <label className="text-[10px] font-semibold text-[#777777]">Component ID</label>
+                <div className="font-mono text-[10px] text-[#111111] p-1.5 rounded-lg bg-white border border-[#EAE8E5]">
                   {selectedNode.id}
                 </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-[#777777]">Execution Timeout (seconds)</label>
+                <label className="text-[10px] font-semibold text-[#777777]">Timeout (seconds)</label>
                 <input
                   type="number"
                   value={config.timeoutSeconds || 30}
                   onChange={(e) => handleConfigChange('timeoutSeconds', parseInt(e.target.value))}
-                  className="w-full text-xs text-[#111111] bg-[#FFFFFF] border border-[#EAE8E5] rounded-lg px-2.5 py-1.5"
+                  className="w-full text-xs text-[#111111] bg-white border border-[#EAE8E5] rounded-lg px-2.5 py-1.5"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-medium text-[#777777]">Retry on Error</label>
+                <label className="text-[10px] font-semibold text-[#777777]">Retry Policy</label>
                 <select
                   value={config.retryPolicy || 'Auto-retry up to 2 times'}
                   onChange={(e) => handleConfigChange('retryPolicy', e.target.value)}
-                  className="w-full text-xs text-[#111111] bg-[#FFFFFF] border border-[#EAE8E5] rounded-lg px-2 py-1.5"
+                  className="w-full text-xs text-[#111111] bg-white border border-[#EAE8E5] rounded-lg px-2 py-1.5"
                 >
-                  <option value="Auto-retry up to 2 times">Auto-retry up to 2 times</option>
+                  <option value="Auto-retry up to 2 times">Auto-retry up to 2 times (Default)</option>
                   <option value="Do not retry">Do not retry</option>
                 </select>
               </div>
@@ -365,9 +389,9 @@ export const ComponentSettings: React.FC = () => {
         </div>
       </div>
 
-      {/* Action Buttons in Footer */}
-      <div className="p-4 border-t border-[#EAE8E5] bg-[#FFFFFF] space-y-2">
-        <LiquidButton
+      {/* Action Buttons in Footer with 3D Elevated Buttons */}
+      <div className="p-4 border-t border-[#EAE8E5] bg-white space-y-2">
+        <ElevatedButton
           variant="primary"
           size="md"
           onClick={handleSave}
@@ -375,24 +399,26 @@ export const ComponentSettings: React.FC = () => {
           icon={<Save className="w-3.5 h-3.5" />}
         >
           Save Settings
-        </LiquidButton>
+        </ElevatedButton>
 
         <div className="grid grid-cols-2 gap-2">
-          <button
+          <ElevatedButton
+            variant="secondary"
+            size="sm"
             onClick={() => duplicateNode(selectedNode.id)}
-            className="py-2 rounded-xl bg-[#F7F6F4] hover:bg-[#EAE8E5] text-[#111111] text-xs font-medium border border-[#EAE8E5] transition-colors flex items-center justify-center gap-1.5 shadow-subtle"
+            icon={<Copy className="w-3.5 h-3.5 text-[#777777]" />}
           >
-            <Copy className="w-3.5 h-3.5 text-[#777777]" />
-            <span>Duplicate</span>
-          </button>
+            Duplicate
+          </ElevatedButton>
 
-          <button
+          <ElevatedButton
+            variant="destructive"
+            size="sm"
             onClick={() => deleteNode(selectedNode.id)}
-            className="py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium border border-rose-200 transition-colors flex items-center justify-center gap-1.5"
+            icon={<Trash2 className="w-3.5 h-3.5" />}
           >
-            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-            <span>Delete</span>
-          </button>
+            Delete
+          </ElevatedButton>
         </div>
       </div>
     </div>

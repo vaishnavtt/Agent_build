@@ -6,9 +6,10 @@ import {
   Bot,
   Info,
   Sliders,
+  Check,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
-import { LiquidButton } from '../common/LiquidButton';
+import { ElevatedButton } from '../common/ElevatedButton';
 
 export const SettingsPage: React.FC = () => {
   const { showToast } = useWorkflow();
@@ -23,14 +24,29 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12 select-none">
+    <div className="max-w-4xl mx-auto space-y-8 pb-12 select-none page-fade-in">
+      {/* Friendly Guide Ribbon */}
+      <div className="p-3.5 rounded-2xl bg-[#FAF5F1] border border-[#CF8047]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-subtle">
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-[#B15F2C] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+            ?
+          </span>
+          <p className="text-xs text-[#111111]">
+            <strong className="text-[#B15F2C]">System Settings:</strong> Control default AI reasoning models, execution safety limits, and autonomous repair rules.
+          </p>
+        </div>
+        <span className="text-[11px] font-bold text-[#B15F2C]">
+          System Controls
+        </span>
+      </div>
+
       {/* Header */}
       <div className="space-y-1">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-bold shadow-subtle">
           <Settings className="w-3.5 h-3.5" />
           <span>System & Preferences</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#111111] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
           Settings
         </h1>
         <p className="text-sm text-[#777777]">
@@ -39,24 +55,24 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Model & AI Settings Card */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-5">
+      <div className="p-6 sm:p-7 rounded-3xl bg-white border border-[#EAE8E5] shadow-card space-y-5">
         <div className="flex items-center gap-3 pb-3 border-b border-[#EAE8E5]">
-          <div className="w-9 h-9 rounded-xl bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/20 flex items-center justify-center shadow-subtle">
+          <div className="w-9 h-9 rounded-2xl bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/20 flex items-center justify-center shadow-subtle">
             <Bot className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-[#111111]">AI Intelligence Engine</h2>
-            <p className="text-xs text-[#777777]">Google Gemini API reasoning settings</p>
+            <h2 className="font-extrabold text-sm text-[#111111]">AI Intelligence Engine</h2>
+            <p className="text-xs text-[#777777]">Google Gemini API reasoning parameters</p>
           </div>
         </div>
 
         <div className="space-y-4 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#111111]">Default AI Model</label>
+            <label className="font-bold text-[#111111]">Default AI Model</label>
             <select
               value={defaultModel}
               onChange={(e) => setDefaultModel(e.target.value)}
-              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all"
+              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
             >
               <option value="Gemini 1.5 Pro (Recommended)">Gemini 1.5 Pro (Advanced reasoning & natural language understanding)</option>
               <option value="Gemini 1.5 Flash (Fast)">Gemini 1.5 Flash (Ultra-low latency execution)</option>
@@ -67,14 +83,14 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#111111]">Maximum Execution Timeout (Seconds)</label>
+            <label className="font-bold text-[#111111]">Maximum Execution Timeout (Seconds)</label>
             <input
               type="number"
               min={30}
               max={1800}
               value={executionTimeout}
               onChange={(e) => setExecutionTimeout(parseInt(e.target.value))}
-              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all"
+              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
             />
             <p className="text-[11px] text-[#777777]">
               Workflows running longer than this will safely stop for review.
@@ -84,21 +100,21 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Autonomous Self-Repair Policy Card */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-5">
+      <div className="p-6 sm:p-7 rounded-3xl bg-white border border-[#EAE8E5] shadow-card space-y-5">
         <div className="flex items-center gap-3 pb-3 border-b border-[#EAE8E5]">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 flex items-center justify-center shadow-subtle">
+          <div className="w-9 h-9 rounded-2xl bg-amber-50 text-amber-800 border border-amber-200 flex items-center justify-center shadow-subtle">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-bold text-sm text-[#111111]">Autonomous Self-Repair Policy</h2>
+            <h2 className="font-extrabold text-sm text-[#111111]">Autonomous Self-Repair Policy</h2>
             <p className="text-xs text-[#777777]">Rules governing automated fault detection and repair</p>
           </div>
         </div>
 
         <div className="space-y-4 text-xs">
-          <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#F7F6F4] border border-[#EAE8E5]">
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F7F6F4] border border-[#EAE8E5] shadow-subtle">
             <div>
-              <p className="font-semibold text-[#111111]">Enable Automatic Self-Repair</p>
+              <p className="font-bold text-[#111111]">Enable Automatic Self-Repair</p>
               <p className="text-[11px] text-[#777777]">
                 Allow AgentForge AI to analyze failed components and offer 1-click automatic repairs.
               </p>
@@ -112,14 +128,14 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-[#111111]">Maximum Automatic Repair Attempts</label>
+            <label className="font-bold text-[#111111]">Maximum Automatic Repair Attempts</label>
             <input
               type="number"
               min={1}
               max={2}
               value={maxRepairAttempts}
               onChange={(e) => setMaxRepairAttempts(parseInt(e.target.value))}
-              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all"
+              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
             />
             <p className="text-[11px] text-[#777777]">
               Strictly limited to 2 attempts max to avoid repetitive adjustments.
@@ -139,16 +155,16 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Button */}
+      {/* Save Button with 3D Elevated Button */}
       <div className="flex justify-end">
-        <LiquidButton
+        <ElevatedButton
           variant="primary"
           size="md"
           onClick={handleSave}
           glow
         >
           Save Preferences
-        </LiquidButton>
+        </ElevatedButton>
       </div>
     </div>
   );

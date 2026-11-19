@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { ExecutionRecord } from '../../types';
-import { LiquidButton } from '../common/LiquidButton';
+import { ElevatedButton } from '../common/ElevatedButton';
 
 export const ExecutionHistoryPage: React.FC = () => {
   const { executionHistory, setCurrentPage } = useWorkflow();
@@ -36,14 +36,29 @@ export const ExecutionHistoryPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12 select-none">
+    <div className="max-w-5xl mx-auto space-y-8 pb-12 select-none page-fade-in">
+      {/* Friendly Guide Ribbon */}
+      <div className="p-3.5 rounded-2xl bg-[#FAF5F1] border border-[#CF8047]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-subtle">
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full bg-[#B15F2C] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+            ?
+          </span>
+          <p className="text-xs text-[#111111]">
+            <strong className="text-[#B15F2C]">Audit Log:</strong> Review how fast your assistants completed their tasks, view duration metrics, and check automatic repair records.
+          </p>
+        </div>
+        <span className="text-[11px] font-bold text-[#B15F2C]">
+          {executionHistory.length} Runs Recorded
+        </span>
+      </div>
+
       {/* Heading */}
       <div className="space-y-1">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-semibold">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5F1] border border-[#CF8047]/30 text-[#B15F2C] text-xs font-bold shadow-subtle">
           <History className="w-3.5 h-3.5" />
           <span>Past Executions & History</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-[#111111] tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111111] tracking-tight">
           Execution History
         </h1>
         <p className="text-sm text-[#777777]">
@@ -52,14 +67,14 @@ export const ExecutionHistoryPage: React.FC = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="p-4 rounded-3xl bg-white border border-[#EAE8E5] shadow-card flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Filters */}
         <div className="flex items-center gap-1.5 bg-[#F7F6F4] p-1 rounded-2xl w-full sm:w-auto border border-[#EAE8E5]">
           <button
             onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'all'
-                ? 'bg-[#FFFFFF] text-[#111111] shadow-subtle border border-[#EAE8E5]'
+                ? 'bg-white text-[#111111] shadow-subtle border border-[#EAE8E5]'
                 : 'text-[#777777] hover:text-[#111111]'
             }`}
           >
@@ -67,9 +82,9 @@ export const ExecutionHistoryPage: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter('completed')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'completed'
-                ? 'bg-[#FFFFFF] text-[#111111] shadow-subtle border border-[#EAE8E5]'
+                ? 'bg-white text-[#111111] shadow-subtle border border-[#EAE8E5]'
                 : 'text-[#777777] hover:text-[#111111]'
             }`}
           >
@@ -77,9 +92,9 @@ export const ExecutionHistoryPage: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter('repaired')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'repaired'
-                ? 'bg-[#FFFFFF] text-[#111111] shadow-subtle border border-[#EAE8E5]'
+                ? 'bg-white text-[#111111] shadow-subtle border border-[#EAE8E5]'
                 : 'text-[#777777] hover:text-[#111111]'
             }`}
           >
@@ -87,9 +102,9 @@ export const ExecutionHistoryPage: React.FC = () => {
           </button>
           <button
             onClick={() => setFilter('failed')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
               filter === 'failed'
-                ? 'bg-[#FFFFFF] text-[#111111] shadow-subtle border border-[#EAE8E5]'
+                ? 'bg-white text-[#111111] shadow-subtle border border-[#EAE8E5]'
                 : 'text-[#777777] hover:text-[#111111]'
             }`}
           >
@@ -105,29 +120,29 @@ export const ExecutionHistoryPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search executions..."
-            className="w-full text-xs text-[#111111] placeholder:text-[#777777] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl pl-8 pr-3 py-2 focus:outline-none focus:border-[#B15F2C] focus:bg-[#FFFFFF] transition-all"
+            className="w-full text-xs text-[#111111] placeholder:text-[#777777] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl pl-8 pr-3 py-2 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
           />
         </div>
       </div>
 
       {/* Executions Table Card */}
-      <div className="p-6 rounded-3xl bg-[#FFFFFF] border border-[#EAE8E5] shadow-card space-y-4">
+      <div className="p-6 rounded-3xl bg-white border border-[#EAE8E5] shadow-card space-y-4">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[#EAE8E5] text-[#777777] text-[11px] pb-2">
-                <th className="py-2.5 font-medium">Agent Name</th>
-                <th className="py-2.5 font-medium">Execution ID</th>
-                <th className="py-2.5 font-medium">Date & Time</th>
-                <th className="py-2.5 font-medium">Duration</th>
-                <th className="py-2.5 font-medium">Status</th>
-                <th className="py-2.5 font-medium text-right">Actions</th>
+                <th className="py-2.5 font-semibold">Assistant Name</th>
+                <th className="py-2.5 font-semibold">Execution ID</th>
+                <th className="py-2.5 font-semibold">Date & Time</th>
+                <th className="py-2.5 font-semibold">Duration</th>
+                <th className="py-2.5 font-semibold">Status</th>
+                <th className="py-2.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EAE8E5]">
               {filteredHistory.map((rec) => (
                 <tr key={rec.id} className="hover:bg-[#F7F6F4]/50 transition-colors">
-                  <td className="py-3.5 font-bold text-[#111111]">{rec.agentName}</td>
+                  <td className="py-3.5 font-extrabold text-[#111111]">{rec.agentName}</td>
                   <td className="py-3.5 text-[#777777] font-mono text-[11px]">{rec.id}</td>
                   <td className="py-3.5 text-[#777777]">
                     <span className="flex items-center gap-1 font-medium">
@@ -135,7 +150,7 @@ export const ExecutionHistoryPage: React.FC = () => {
                       {rec.startedAt}
                     </span>
                   </td>
-                  <td className="py-3.5 text-[#111111] font-medium">{rec.duration}</td>
+                  <td className="py-3.5 text-[#111111] font-bold">{rec.duration}</td>
                   <td className="py-3.5">
                     <span
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
@@ -153,12 +168,13 @@ export const ExecutionHistoryPage: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3.5 text-right">
-                    <button
+                    <ElevatedButton
+                      variant="secondary"
+                      size="sm"
                       onClick={() => setSelectedRecord(rec)}
-                      className="px-3.5 py-1.5 rounded-full bg-[#F7F6F4] hover:bg-[#EAE8E5] text-[#111111] text-[11px] font-semibold border border-[#EAE8E5] transition-colors shadow-subtle"
                     >
                       View Details
-                    </button>
+                    </ElevatedButton>
                   </td>
                 </tr>
               ))}
@@ -174,7 +190,7 @@ export const ExecutionHistoryPage: React.FC = () => {
                 setFilter('all');
                 setSearchQuery('');
               }}
-              className="text-[#B15F2C] font-semibold hover:underline"
+              className="text-[#B15F2C] font-bold hover:underline"
             >
               Reset filters
             </button>
@@ -185,10 +201,10 @@ export const ExecutionHistoryPage: React.FC = () => {
       {/* Selected Run Details Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#FFFFFF] rounded-3xl max-w-xl w-full border border-[#EAE8E5] shadow-glass p-6 space-y-5">
+          <div className="bg-white rounded-3xl max-w-xl w-full border border-[#EAE8E5] shadow-glass p-6 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#EAE8E5]">
               <div>
-                <h3 className="font-bold text-base text-[#111111]">{selectedRecord.agentName}</h3>
+                <h3 className="font-extrabold text-base text-[#111111]">{selectedRecord.agentName}</h3>
                 <p className="text-xs text-[#777777] font-mono">{selectedRecord.id} • {selectedRecord.startedAt}</p>
               </div>
               <span
@@ -203,7 +219,7 @@ export const ExecutionHistoryPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              <h4 className="font-semibold text-xs text-[#111111]">Steps Executed:</h4>
+              <h4 className="font-bold text-xs text-[#111111]">Steps Executed:</h4>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {selectedRecord.steps.map((st, i) => (
                   <div
@@ -214,7 +230,7 @@ export const ExecutionHistoryPage: React.FC = () => {
                       <p className="font-bold text-[#111111]">{st.componentName}</p>
                       <p className="text-[11px] text-[#777777]">{st.activity}</p>
                     </div>
-                    <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md bg-white border border-[#EAE8E5] text-emerald-800">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white border border-[#EAE8E5] text-emerald-800">
                       {st.status}
                     </span>
                   </div>
@@ -228,17 +244,18 @@ export const ExecutionHistoryPage: React.FC = () => {
                   setSelectedRecord(null);
                   setCurrentPage('activity');
                 }}
-                className="text-xs text-[#B15F2C] font-semibold hover:underline"
+                className="text-xs text-[#B15F2C] font-bold hover:underline"
               >
-                Open in Full Live Monitor →
+                Watch in Live Monitor →
               </button>
 
-              <button
+              <ElevatedButton
+                variant="secondary"
+                size="sm"
                 onClick={() => setSelectedRecord(null)}
-                className="px-5 py-2 rounded-full bg-[#111111] hover:bg-[#222222] text-white text-xs font-semibold shadow-subtle transition-colors"
               >
                 Close
-              </button>
+              </ElevatedButton>
             </div>
           </div>
         </div>
