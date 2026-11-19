@@ -27,6 +27,7 @@ export const DashboardPage: React.FC = () => {
     loadTemplate,
     loadAgent,
     executionHistory,
+    savedAgents,
   } = useWorkflow();
 
   const [promptText, setPromptText] = useState('');
@@ -208,7 +209,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-extrabold text-[#111111]">
-              {RECENT_AGENTS.length}
+              {savedAgents.length}
             </div>
             <p className="text-[11px] text-emerald-800 font-semibold">Ready to run</p>
           </div>
@@ -264,13 +265,13 @@ export const DashboardPage: React.FC = () => {
             onClick={() => setCurrentPage('my-agents')}
             className="text-xs text-[#B15F2C] font-bold hover:underline flex items-center gap-1"
           >
-            <span>See all ({RECENT_AGENTS.length})</span>
+            <span>See all ({savedAgents.length})</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {RECENT_AGENTS.map((agent) => (
+          {savedAgents.slice(0, 4).map((agent) => (
             <div
               key={agent.id}
               className="p-5 rounded-3xl bg-white border border-[#EAE8E5] shadow-card hover:shadow-card-hover hover:border-[#CF8047]/40 transition-all flex flex-col justify-between group space-y-4"

@@ -20,10 +20,11 @@ class NodePosition(BaseModel):
 
 class WorkflowNodeSchema(BaseModel):
     id: str
-    type: NodeType
-    name: str
-    position: NodePosition
-    config: Dict[str, Any] = Field(default_factory=dict)
+    type: Optional[str] = "customWorkflow"
+    name: Optional[str] = None
+    position: Optional[NodePosition] = None
+    data: Optional[Dict[str, Any]] = None
+    config: Optional[Dict[str, Any]] = Field(default_factory=dict)
     inputHandles: Optional[List[str]] = Field(default_factory=list)
     outputHandles: Optional[List[str]] = Field(default_factory=list)
 
@@ -35,6 +36,7 @@ class WorkflowEdgeSchema(BaseModel):
     sourceHandle: Optional[str] = None
     targetHandle: Optional[str] = None
     condition: Optional[str] = None
+    animated: Optional[bool] = True
 
 
 class WorkflowConfigurationSchema(BaseModel):
@@ -49,13 +51,23 @@ class WorkflowBase(BaseModel):
     description: Optional[str] = None
     version: str = "1.0.0"
     configuration: WorkflowConfigurationSchema = Field(default_factory=WorkflowConfigurationSchema)
-    nodes: List[WorkflowNodeSchema] = Field(default_factory=list)
-    edges: List[WorkflowEdgeSchema] = Field(default_factory=list)
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
 
 
 class WorkflowCreate(WorkflowBase):
     pass
+
+
+class WorkflowUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    version: Optional[str] = None
+    configuration: Optional[WorkflowConfigurationSchema] = None
+    nodes: Optional[List[Dict[str, Any]]] = None
+    edges: Optional[List[Dict[str, Any]]] = None
+    tags: Optional[List[str]] = None
 
 
 class WorkflowRead(WorkflowBase):
@@ -67,3 +79,38 @@ class WorkflowRead(WorkflowBase):
     class Config:
         from_attributes = True
 
+
+class WorkflowValidateRequest(BaseModel):
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+
+
+class WorkflowValidateResponse(BaseModel):
+    is_valid: bool
+    readiness_score: int
+    issues: List[Dict[str, Any]] = Field(default_factory=list)
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowExecutionCreate(BaseModel):
+    workflow_id: str
+    status: str = "COMPLETED"
+    input_payload: Optional[Dict[str, Any]] = None
+    output_result: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    repair_attempts: int = 0
+
+
+class WorkflowExecutionRead(BaseModel):
+    id: str
+    workflow_id: str
+    status: str
+    input_payload: Optional[Dict[str, Any]] = None
+    output_result: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    repair_attempts: int
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

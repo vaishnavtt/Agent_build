@@ -13,12 +13,12 @@ import { RECENT_AGENTS } from '../../data/mockData';
 import { ElevatedButton } from '../common/ElevatedButton';
 
 export const MyAgentsPage: React.FC = () => {
-  const { loadAgent, setCurrentPage } = useWorkflow();
+  const { loadAgent, setCurrentPage, savedAgents } = useWorkflow();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Ready' | 'Active' | 'Needs Review'>('All');
 
-  const filteredAgents = RECENT_AGENTS.filter((agent) => {
+  const filteredAgents = savedAgents.filter((agent) => {
     const matchesSearch =
       agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -39,7 +39,7 @@ export const MyAgentsPage: React.FC = () => {
           </p>
         </div>
         <span className="text-[11px] font-bold text-[#B15F2C]">
-          {RECENT_AGENTS.length} Assistants Ready
+          {savedAgents.length} Assistants Ready
         </span>
       </div>
 

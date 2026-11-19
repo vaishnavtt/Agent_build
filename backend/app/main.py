@@ -7,11 +7,13 @@ from app.database.base import Base
 from app.database.session import engine
 from app.api.v1.router import api_v1_router
 
+# Ensure all database tables exist on module load
+Base.metadata.create_all(bind=engine)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events: initialize SQLite tables on startup."""
-    # Create SQLite database tables if they do not exist
+    """Lifecycle events: ensure SQLite tables exist on startup."""
     Base.metadata.create_all(bind=engine)
     yield
 
@@ -43,4 +45,3 @@ app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
 def root():
     """Redirect root to OpenAPI interactive documentation."""
     return RedirectResponse(url="/docs")
-
