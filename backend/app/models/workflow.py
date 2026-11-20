@@ -40,11 +40,17 @@ class WorkflowExecutionModel(Base):
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     workflow_id = Column(String(36), nullable=False, index=True)
+    workflow_name = Column(String(120), nullable=True)
     status = Column(String(30), default="PENDING", nullable=False, index=True)  # PENDING, RUNNING, COMPLETED, FAILED, REPAIRED
+    trigger_type = Column(String(50), default="MANUAL", nullable=False)
     input_payload = Column(JSON, nullable=True)
     output_result = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
     repair_attempts = Column(Integer, default=0, nullable=False)
+    steps = Column(JSON, nullable=False, default=list)
+    log_evidence = Column(JSON, nullable=False, default=list)
+    repair_report = Column(JSON, nullable=True)
+    duration = Column(String(30), nullable=True, default="0s")
 
     started_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)

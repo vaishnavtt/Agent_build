@@ -1,5 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.services.workflow_service import WorkflowService
@@ -12,8 +13,32 @@ from app.schemas.workflow import (
     WorkflowExecutionCreate,
     WorkflowExecutionRead,
 )
+from app.agents.validation_agent import ValidationAgent
+from app.agents.planner_agent import PlannerAgent
+from app.agents.execution_agent import ExecutionAgent
 
 router = APIRouter()
+
+
+class WorkflowRunRequest(BaseModel):
+    input_payload: Optional[Dict[str, Any]] = None
+    auto_repair: bool = True
+
+
+class WorkflowRunAdhocRequest(BaseModel):
+    name: Optional[str] = "AgentForge Workflow"
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
+    input_payload: Optional[Dict[str, Any]] = None
+    auto_repair: bool = True
+
+
+class WorkflowPlanRequest(BaseModel):
+    prompt: str = Field(..., min_length=3)
+    requirements: Optional[List[str]] = None
+
+
+# --- Workflow CRUD Endpoints ---
 
 
 @router.get(
@@ -45,6 +70,119 @@ def create_workflow(
 ) -> WorkflowRead:
     service = WorkflowService(db)
     return service.create_workflow(workflow_in)
+
+
+@router.get(
+    "/executions/all",
+    response_model=List[WorkflowExecutionRead],
+    status_code=status.HTTP_200_OK,
+    summary="List All Executions",
+    description="Retrieve execution history across all workflows.",
+)
+def list_all_executions(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> List[WorkflowExecutionRead]:
+    service = WorkflowService(db)
+    return service.list_executions(workflow_id=None, skip=skip, limit=limit)
+
+
+@router.get(
+    "/executions/{execution_id}",
+    response_model=WorkflowExecutionRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get Execution Record",
+    description="Retrieve a specific execution record by its ID with full log evidence.",
+)
+def get_execution(
+    execution_id: str,
+    db: Session = Depends(get_db),
+) -> WorkflowExecutionRead:
+    service = WorkflowService(db)
+    exec_rec = service.get_execution(execution_id)
+    if not exec_rec:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Execution with ID '{execution_id}' not found.",
+        )
+    return exec_rec
+
+
+@router.post(
+    "/plan",
+    status_code=status.HTTP_200_OK,
+    summary="Plan Workflow with Planner Agent",
+    description="Deconstructs natural language requirements into a valid workflow graph.",
+)
+def plan_workflow_endpoint(
+    payload: WorkflowPlanRequest,
+) -> Dict[str, Any]:
+    planner = PlannerAgent()
+    return planner.plan_workflow(payload.prompt, payload.requirements)
+
+
+@router.post(
+    "/validate",
+    response_model=WorkflowValidateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Validate Workflow Graph",
+    description="Validates topology, required connections, and node configurations using Validation Agent.",
+)
+def validate_workflow(
+    payload: WorkflowValidateRequest,
+) -> WorkflowValidateResponse:
+    agent = ValidationAgent()
+    res = agent.validate_workflow(payload.nodes, payload.edges)
+    return WorkflowValidateResponse(
+        is_valid=res["is_valid"],
+        readiness_score=res["readiness_score"],
+        issues=res["issues"],
+        metrics=res["metrics"],
+    )
+
+
+@router.post(
+    "/run-adhoc",
+    response_model=WorkflowExecutionRead,
+    status_code=status.HTTP_200_OK,
+    summary="Execute Adhoc Workflow Canvas",
+    description="Executes a live workflow graph directly from the React Flow editor.",
+)
+def run_adhoc_workflow(
+    payload: WorkflowRunAdhocRequest,
+    db: Session = Depends(get_db),
+) -> WorkflowExecutionRead:
+    agent = ExecutionAgent()
+    wf_dict = {
+        "id": "adhoc-canvas",
+        "name": payload.name or "Adhoc Canvas Agent",
+        "nodes": payload.nodes,
+        "edges": payload.edges,
+    }
+    exec_res = agent.execute_workflow(
+        workflow=wf_dict,
+        input_payload=payload.input_payload,
+        auto_repair=payload.auto_repair,
+    )
+
+    # Persist execution run in database
+    service = WorkflowService(db)
+    exec_in = WorkflowExecutionCreate(
+        workflow_id="adhoc-canvas",
+        workflow_name=payload.name or "Adhoc Canvas Agent",
+        status=exec_res["status"],
+        trigger_type="STUDIO_RUN",
+        input_payload=exec_res["input_payload"],
+        output_result=exec_res["output_result"],
+        error_message=exec_res.get("error_message"),
+        repair_attempts=exec_res.get("repair_attempts", 0),
+        steps=exec_res.get("steps", []),
+        log_evidence=exec_res.get("log_evidence", []),
+        repair_report=exec_res.get("repair_report"),
+        duration=exec_res.get("duration", "0s"),
+    )
+    return service.create_execution(exec_in)
 
 
 @router.get(
@@ -111,89 +249,54 @@ def delete_workflow(
 
 
 @router.post(
-    "/validate",
-    response_model=WorkflowValidateResponse,
+    "/{workflow_id}/run",
+    response_model=WorkflowExecutionRead,
     status_code=status.HTTP_200_OK,
-    summary="Validate Workflow Graph",
-    description="Validates topology, required connections, and node configurations.",
+    summary="Run Workflow with Execution Agent",
+    description="Runs the full multi-agent workflow execution pipeline with logging and autonomous self-repair.",
 )
-def validate_workflow(
-    payload: WorkflowValidateRequest,
-) -> WorkflowValidateResponse:
-    nodes = payload.nodes
-    edges = payload.edges
-
-    issues = []
-    # 1. Structural check: Must have at least 1 node
-    if not nodes:
-        issues.append(
-            {
-                "id": "err-no-nodes",
-                "category": "structural",
-                "severity": "error",
-                "title": "No Components in Workflow",
-                "description": "The workflow contains no building blocks.",
-                "suggestedFix": "Add at least one START block and one FINISH block.",
-            }
+def run_workflow(
+    workflow_id: str,
+    payload: WorkflowRunRequest,
+    db: Session = Depends(get_db),
+) -> WorkflowExecutionRead:
+    service = WorkflowService(db)
+    wf = service.get_workflow(workflow_id)
+    if not wf:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID '{workflow_id}' not found.",
         )
 
-    # 2. Check for start block (Input or START)
-    has_start = any(
-        n.get("data", {}).get("componentType") == "Input"
-        or n.get("type") == "Input"
-        or n.get("data", {}).get("label", "").lower() == "start"
-        for n in nodes
+    wf_dict = {
+        "id": wf.id,
+        "name": wf.name,
+        "nodes": wf.nodes,
+        "edges": wf.edges,
+    }
+
+    agent = ExecutionAgent()
+    exec_res = agent.execute_workflow(
+        workflow=wf_dict,
+        input_payload=payload.input_payload,
+        auto_repair=payload.auto_repair,
     )
-    if nodes and not has_start:
-        issues.append(
-            {
-                "id": "warn-no-start",
-                "category": "structural",
-                "severity": "warning",
-                "title": "Missing Start Step",
-                "description": "Your agent does not have a designated entry step.",
-                "suggestedFix": "Add a START (Input) block to capture incoming information.",
-            }
-        )
 
-    # 3. Check for disconnected nodes if more than 1 node exists
-    if len(nodes) > 1:
-        connected_node_ids = set()
-        for e in edges:
-            connected_node_ids.add(e.get("source"))
-            connected_node_ids.add(e.get("target"))
-
-        disconnected = [n for n in nodes if n.get("id") not in connected_node_ids]
-        for d in disconnected:
-            name = d.get("data", {}).get("label") or d.get("id")
-            issues.append(
-                {
-                    "id": f"conn-{d.get('id')}",
-                    "nodeId": d.get("id"),
-                    "category": "connection",
-                    "severity": "warning",
-                    "title": f"'{name}' is Disconnected",
-                    "description": f"This step is not linked to any other step in the workflow.",
-                    "suggestedFix": "Drag a connector line to link this step into your agent's flow.",
-                }
-            )
-
-    is_valid = not any(i["severity"] == "error" for i in issues)
-    error_count = sum(1 for i in issues if i["severity"] == "error")
-    warn_count = sum(1 for i in issues if i["severity"] == "warning")
-    score = max(0, 100 - (error_count * 30 + warn_count * 10))
-
-    return WorkflowValidateResponse(
-        is_valid=is_valid,
-        readiness_score=score,
-        issues=issues,
-        metrics={
-            "total_nodes": len(nodes),
-            "total_edges": len(edges),
-            "errors": error_count,
-            "warnings": warn_count,
-        },
+    exec_in = WorkflowExecutionCreate(
+        workflow_id=wf.id,
+        workflow_name=wf.name,
+        status=exec_res["status"],
+        trigger_type="STUDIO_RUN",
+        input_payload=exec_res["input_payload"],
+        output_result=exec_res["output_result"],
+        error_message=exec_res.get("error_message"),
+        repair_attempts=exec_res.get("repair_attempts", 0),
+        steps=exec_res.get("steps", []),
+        log_evidence=exec_res.get("log_evidence", []),
+        repair_report=exec_res.get("repair_report"),
+        duration=exec_res.get("duration", "0s"),
     )
+    return service.create_execution(exec_in)
 
 
 @router.post(
@@ -209,7 +312,6 @@ def record_execution(
     db: Session = Depends(get_db),
 ) -> WorkflowExecutionRead:
     service = WorkflowService(db)
-    # Ensure workflow exists
     wf = service.get_workflow(workflow_id)
     if not wf:
         raise HTTPException(
@@ -224,7 +326,7 @@ def record_execution(
     response_model=List[WorkflowExecutionRead],
     status_code=status.HTTP_200_OK,
     summary="List Workflow Executions",
-    description="Get execution history for a workflow.",
+    description="Get execution history for a specific workflow.",
 )
 def list_workflow_executions(
     workflow_id: str,

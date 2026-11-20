@@ -1,72 +1,89 @@
 # AgentForge AI 🛠️⚡
+### AI Multi-Agent Visual Workflow Builder
 
-**AgentForge AI** is an AI-powered visual agent builder that converts natural language instructions into executable visual workflows. It automatically generates workflows, validates topology, tests functionality, detects failures, and attempts autonomous self-repairs.
+**AgentForge AI** is an advanced, production-ready AI workflow builder that enables developers and teams to visually design, configure, validate, execute, and monitor multi-agent workflows. It bridges non-technical users and AI agent engineering by translating natural language instructions into directed component graphs, validating topology and configurations, executing automated requirement tests, isolating failures through execution log evidence, and autonomously performing targeted self-repairs.
 
 ---
 
 ## 🌟 Technology Stack
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, React Flow (`@xyflow/react`), Lucide React
-- **Backend**: Python 3.11, FastAPI, Pydantic v2, SQLite, SQLAlchemy 2.0
-- **AI & Reasoning Layer**: Google Gemini API, LangGraph (StateGraph runtime)
-- **Testing**: Pytest, Pytest-Asyncio, HTTPX
+- **Frontend**: React 19, TypeScript, Vite, React Flow (`@xyflow/react`), Tailwind CSS, Lucide React
+- **Backend**: Python 3.12, FastAPI, Pydantic v2, SQLite, SQLAlchemy 2.0, Uvicorn
+- **AI & Reasoning Layer**: Google Gemini API (`gemini-1.5-pro`, `gemini-1.5-flash`), with resilient server-side fallback
+- **Testing & Tooling**: Pytest, Pytest-Asyncio, HTTPX
 
 ---
 
-## 📁 Monorepo Architecture
+## 🤖 6 Specialized AI Agents
 
-```
-agent_workflow/
-├── frontend/             # React + Vite visual workflow editor
-├── backend/              # FastAPI + SQLAlchemy SQLite API service
-│   ├── app/
-│   │   ├── api/v1/       # Endpoints (including /api/v1/health)
-│   │   ├── core/         # App settings & environment configs
-│   │   ├── database/     # SQLAlchemy engine & session factory
-│   │   ├── models/       # Database models (Workflow, Execution)
-│   │   ├── schemas/      # Pydantic schemas
-│   │   └── services/     # Business logic & workflow services
-│   └── tests/            # Pytest test suite
-├── shared/               # Single Source of Truth
-│   ├── workflow.schema.json  # Workflow JSON Schema (Draft 2020-12)
-│   ├── node_definitions.json # 7 canonical node type catalog
-│   └── types.ts              # Shared TypeScript definitions
-├── docs/                 # Engineering Documentation
-│   ├── ARCHITECTURE.md       # High-level diagrams & self-repair loop
-│   ├── API_SPECIFICATION.md  # REST API specification & schemas
-│   ├── DEVELOPMENT_GUIDE.md  # 6-member team guide & conventions
-│   └── README.md
-├── .env.example          # Environment variables template (No secrets)
-├── .gitignore            # Git exclusion rules
-└── README.md             # This document
-```
+AgentForge AI incorporates six specialized, collaborating agents:
 
----
-
-## 👥 Six-Member Engineering Team Responsibilities
-
-| # | Role / Member | Key Responsibilities | Primary Ownership |
+| # | Agent Name | Role | Primary Responsibility |
 | :-: | :--- | :--- | :--- |
-| **1** | **Frontend Development** | Visual drag-and-drop canvas with React Flow, node parameter sidebars, execution status indicators, and responsive UI. | `frontend/` |
-| **2** | **Backend and Database** | RESTful routing, SQLite/SQLAlchemy ORM models, migrations, CRUD endpoints, and database connection lifecycle. | `backend/app/api/`, `backend/app/database/`, `backend/app/models/` |
-| **3** | **AI Agent Architect** | Google Gemini API integration, prompt orchestration, translating natural language prompts into valid structured workflow graphs. | `backend/app/services/ai/` |
-| **4** | **Workflow Generation & Components** | Graph topology validation, cycle detection, input/output port compatibility, component catalog, schema versioning. | `shared/`, `backend/app/services/workflow/` |
-| **5** | **Workflow Execution Engine** | Compiling workflow graphs to LangGraph `StateGraph`, asynchronous node runner, tool execution sandbox, human approval gates. | `backend/app/services/engine/` |
-| **6** | **Testing, Validation & Self-Repair** | End-to-end Pytest test suite, failure diagnosis agent, automated graph patching and self-repair verification loop. | `backend/tests/`, `backend/app/services/repair/` |
+| **1** | **Planner Agent** | `Workflow Planner` | Plans workflow graph structure and node mapping from user intent or natural language requirements. |
+| **2** | **Research Agent** | `Information Researcher` | Gathers context, extracts document data (PDF, DOCX, text), and enriches parameters for downstream tasks. |
+| **3** | **Execution Agent** | `Workflow Executor` | Executes assigned workflow tasks in topological order, invokes Gemini models, and tracks state. |
+| **4** | **Validation Agent** | `Workflow Validator` | Verifies graph correctness, topology (cycles, disconnected steps), and calculates dynamic readiness score. |
+| **5** | **Error Detection Agent** | `Error Diagnostician` | Identifies runtime errors, isolates root causes, and generates the Diagnostic Triad with log evidence. |
+| **6** | **Self-Repair Agent** | `Autonomous Repairer` | Executes autonomous 5-stage self-repairs strictly capped at 2 attempts, generating a terminal report. |
 
 ---
 
-## 🧩 Supported Node Types
+## 🧩 7 Canonical Workflow Components
 
-The 7 standard node primitives supported by AgentForge AI (defined in `shared/node_definitions.json`):
+AgentForge supports 7 standardized node primitives (`shared/node_definitions.json`):
 
-1. **Input** (`FileInput`): Ingests user prompts, payloads, or webhook triggers.
-2. **LLM** (`Bot`): Executes prompts and reasoning chains with Google Gemini models.
-3. **Document Reader** (`FileText`): Extracts and chunks text from PDF, DOCX, Markdown, and text context.
-4. **Tool** (`Wrench`): Performs API calls, search queries, or custom Python actions.
-5. **Condition** (`GitFork`): Branching logic evaluating conditional expressions.
-6. **Human Approval** (`UserCheck`): Human-in-the-loop pause gate requiring user sign-off.
-7. **Output** (`FileOutput`): Terminal node returning formatted results, reports, and metrics.
+1. **Input (`Input`)**: Trigger source (file upload, text prompt, webhook).
+2. **Document Reader (`Document Reader`)**: Parses and extracts text, entities, and skills from documents.
+3. **AI Assistant (`LLM`)**: Powered by Google Gemini for candidate scoring, reasoning, and summarization.
+4. **Condition (`Condition`)**: Branching logic evaluating conditional rules (`fit_score >= 7`, boolean checks).
+5. **Human Approval (`Human Approval`)**: Interactive human-in-the-loop checkpoint requiring sign-off.
+6. **Tool (`Tool`)**: External operations (database sync, ERP integration, API dispatch).
+7. **Output (`Output`)**: Terminal sink formatting scorecard, markdown summaries, and reports.
+
+---
+
+## 📁 Repository Structure
+
+```
+Agent_build/
+├── frontend/                     # React + Vite visual workflow editor
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── activity/        # Execution monitoring & self-repair UI
+│   │   │   ├── agents/          # My Agents dashboard & catalog
+│   │   │   ├── create/          # AI prompt-based agent generation
+│   │   │   ├── dashboard/       # Main overview dashboard
+│   │   │   ├── editor/          # React Flow canvas, library, & settings
+│   │   │   ├── history/         # Execution history & logs viewer
+│   │   │   ├── layout/          # Sidebar, Header, Help modal
+│   │   │   └── validation/      # Readiness score & requirement tests
+│   │   ├── context/             # Global WorkflowContext state management
+│   │   └── types/               # TypeScript interfaces & types
+│   ├── package.json
+│   └── vite.config.ts
+├── backend/                      # FastAPI REST service & AI agent engine
+│   ├── app/
+│   │   ├── agents/              # 6 Specialized AI Agents implementation
+│   │   │   ├── planner_agent.py
+│   │   │   ├── research_agent.py
+│   │   │   ├── execution_agent.py
+│   │   │   ├── validation_agent.py
+│   │   │   ├── error_detection_agent.py
+│   │   │   └── self_repair_agent.py
+│   │   ├── api/v1/endpoints/    # REST endpoints (health, workflows, agents)
+│   │   ├── core/                # Settings, environment, & Gemini client
+│   │   ├── database/            # SQLAlchemy SQLite session & models
+│   │   ├── models/              # Workflow & Execution database models
+│   │   └── services/            # Workflow business logic service
+│   ├── tests/                   # Pytest automated test suite (13 tests)
+│   └── requirements.txt
+├── shared/                       # Shared schemas and node definitions
+├── docs/                         # Architecture & API specifications
+├── start.ps1                     # One-click Windows startup script
+├── start.sh                      # One-click Linux / macOS startup script
+└── README.md
+```
 
 ---
 
@@ -75,62 +92,110 @@ The 7 standard node primitives supported by AgentForge AI (defined in `shared/no
 ### 1. Prerequisites
 - **Node.js**: `v20.x` or `v22.x`
 - **npm**: `v10.x` or higher
-- **Python**: `v3.11.x`
+- **Python**: `v3.11` or `v3.12`
 
 ### 2. Configure Environment
 ```bash
-# On Windows PowerShell:
+# Windows PowerShell:
 Copy-Item .env.example .env
 
-# On macOS / Linux:
+# macOS / Linux:
 cp .env.example .env
 ```
-*(Do not commit your `.env` or real API key).*
+*(Optional: Add your `GEMINI_API_KEY` in `.env` for live Google Gemini LLM reasoning).*
 
-### 3. Start Backend
-```bash
-cd backend
+### 3. One-Click Launch (Recommended)
 
-# Create virtual environment (if not already created)
-python -m venv .venv
-
-# Activate virtual environment
-# Windows PowerShell:
-.venv\Scripts\Activate.ps1
-# macOS / Linux:
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run automated tests
-pytest -v
-
-# Start FastAPI server
-uvicorn app.main:app --reload --port 8000
+**On Windows:**
+```powershell
+.\start.ps1
 ```
-- API Base: `http://localhost:8000/api/v1`
-- Health Check: `http://localhost:8000/api/v1/health`
-- Interactive API Docs: `http://localhost:8000/docs`
 
-### 4. Start Frontend
-In a separate terminal:
+**On Linux / macOS:**
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start Vite dev server
-npm run dev
+chmod +x start.sh
+./start.sh
 ```
-- Frontend UI: `http://localhost:5173`
 
 ---
 
-## 📚 Documentation Links
-- [System Architecture](docs/ARCHITECTURE.md)
-- [API Specification](docs/API_SPECIFICATION.md)
-- [Developer Guide](docs/DEVELOPMENT_GUIDE.md)
-- [Shared Schema & Contracts](shared/README.md)
+### 4. Manual Launch
 
+#### Start Backend
+```bash
+cd backend
+pip install -r requirements.txt
+pytest -v
+uvicorn app.main:app --reload --port 8000
+```
+- **Backend API**: `http://localhost:8000`
+- **Swagger Docs**: `http://localhost:8000/docs`
+- **Health Check**: `http://localhost:8000/api/v1/health`
+
+#### Start Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+- **Frontend UI**: `http://localhost:5173`
+
+---
+
+## 📡 Key REST API Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/health` | Service health status and database connectivity. |
+| `GET` | `/api/v1/agents` | Lists the 6 active AI agents and their capabilities. |
+| `POST` | `/api/v1/agents/plan` | Direct prompt planning with the Planner Agent. |
+| `POST` | `/api/v1/agents/research` | Information extraction with the Research Agent. |
+| `POST` | `/api/v1/agents/diagnose` | Failure diagnosis with the Error Detection Agent. |
+| `POST` | `/api/v1/agents/repair` | Autonomous self-repair with the Self-Repair Agent. |
+| `GET` | `/api/v1/workflows` | List all saved workflows from SQLite. |
+| `POST` | `/api/v1/workflows` | Create and save a new workflow. |
+| `POST` | `/api/v1/workflows/validate` | Validate workflow topology and calculate readiness score. |
+| `POST` | `/api/v1/workflows/run-adhoc` | Execute live React Flow canvas workflow with Execution Agent. |
+| `POST` | `/api/v1/workflows/{id}/run` | Execute saved workflow by ID. |
+| `GET` | `/api/v1/workflows/executions/all` | List execution history across all agents. |
+| `GET` | `/api/v1/workflows/executions/{id}` | Retrieve execution record with full log evidence and repair report. |
+
+---
+
+## 🧪 Testing & Verification
+
+Run the complete backend test suite:
+```bash
+cd backend
+python -m pytest -v
+```
+
+All 13 automated tests pass:
+- `test_planner_agent_plan_workflow` ✅
+- `test_research_agent_collect_and_extract` ✅
+- `test_validation_agent_validates_graph` ✅
+- `test_validation_agent_catches_missing_config` ✅
+- `test_error_detection_and_self_repair_pipeline` ✅
+- `test_list_agents_endpoint` ✅
+- `test_plan_workflow_endpoint` ✅
+- `test_run_adhoc_workflow_endpoint` ✅
+- `test_list_all_executions_endpoint` ✅
+- `test_health_check_endpoint` ✅
+- `test_root_redirects_to_docs` ✅
+- `test_create_and_get_workflow` ✅
+- `test_validate_workflow_api` ✅
+
+Frontend type-checking and production build verification:
+```bash
+cd frontend
+npm run build
+```
+Builds cleanly with zero TypeScript errors.
+
+---
+
+## 🔒 Security Best Practices
+- Secret API keys are strictly loaded on the backend via environment variables / `.env`.
+- API keys are never bundled or exposed to frontend code.
+- SQLite database migrations run safely on startup.
+- CORS origins are restricted to configured localhost addresses.

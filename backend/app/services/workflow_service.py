@@ -87,17 +87,31 @@ class WorkflowService:
         """Record an execution run and its repair attempts in SQLite."""
         exec_obj = WorkflowExecutionModel(
             workflow_id=execution_in.workflow_id,
+            workflow_name=execution_in.workflow_name,
             status=execution_in.status,
+            trigger_type=execution_in.trigger_type or "MANUAL",
             input_payload=execution_in.input_payload,
             output_result=execution_in.output_result,
             error_message=execution_in.error_message,
             repair_attempts=execution_in.repair_attempts,
+            steps=execution_in.steps or [],
+            log_evidence=execution_in.log_evidence or [],
+            repair_report=execution_in.repair_report,
+            duration=execution_in.duration or "0s",
             completed_at=datetime.now(timezone.utc),
         )
         self.db.add(exec_obj)
         self.db.commit()
         self.db.refresh(exec_obj)
         return exec_obj
+
+    def get_execution(self, execution_id: str) -> Optional[WorkflowExecutionModel]:
+        """Fetch a specific execution record by ID."""
+        return (
+            self.db.query(WorkflowExecutionModel)
+            .filter(WorkflowExecutionModel.id == execution_id)
+            .first()
+        )
 
     def list_executions(
         self, workflow_id: Optional[str] = None, skip: int = 0, limit: int = 50

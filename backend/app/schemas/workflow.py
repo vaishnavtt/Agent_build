@@ -94,21 +94,33 @@ class WorkflowValidateResponse(BaseModel):
 
 class WorkflowExecutionCreate(BaseModel):
     workflow_id: str
+    workflow_name: Optional[str] = None
     status: str = "COMPLETED"
+    trigger_type: str = "MANUAL"
     input_payload: Optional[Dict[str, Any]] = None
     output_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     repair_attempts: int = 0
+    steps: List[Dict[str, Any]] = Field(default_factory=list)
+    log_evidence: List[Dict[str, Any]] = Field(default_factory=list)
+    repair_report: Optional[Dict[str, Any]] = None
+    duration: Optional[str] = "0s"
 
 
 class WorkflowExecutionRead(BaseModel):
     id: str
     workflow_id: str
+    workflow_name: Optional[str] = None
     status: str
+    trigger_type: str = "MANUAL"
     input_payload: Optional[Dict[str, Any]] = None
     output_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
-    repair_attempts: int
+    repair_attempts: int = 0
+    steps: List[Dict[str, Any]] = Field(default_factory=list)
+    log_evidence: List[Dict[str, Any]] = Field(default_factory=list)
+    repair_report: Optional[Dict[str, Any]] = None
+    duration: Optional[str] = "0s"
     started_at: datetime
     completed_at: Optional[datetime] = None
 

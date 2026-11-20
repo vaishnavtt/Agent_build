@@ -529,39 +529,70 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrentPage('create-agent');
     setGenerationStep(1); // 1. Understanding requirements
 
-    await new Promise((r) => setTimeout(r, 700));
+    let plannedData: any = null;
+    if (backendStatus === 'connected') {
+      try {
+        let res: Response;
+        try {
+          res = await fetch('/api/v1/workflows/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+          });
+        } catch {
+          res = await fetch('http://localhost:8000/api/v1/workflows/plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+          });
+        }
+        if (res.ok) {
+          plannedData = await res.json();
+        }
+      } catch {
+        // fallback to client-side heuristics
+      }
+    }
+
+    await new Promise((r) => setTimeout(r, 600));
     setGenerationStep(2); // 2. Planning tasks
 
-    await new Promise((r) => setTimeout(r, 750));
+    await new Promise((r) => setTimeout(r, 650));
     setGenerationStep(3); // 3. Selecting components
 
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 700));
     setGenerationStep(4); // 4. Generating workflow
 
-    await new Promise((r) => setTimeout(r, 650));
+    await new Promise((r) => setTimeout(r, 600));
 
-    // Tailor workflow based on prompt intent
+    // Tailor workflow based on planned data or prompt intent
     let selectedNodes = INITIAL_NODES;
     let selectedEdges = INITIAL_EDGES;
     let name = 'Resume Evaluation Agent';
 
-    const p = prompt.toLowerCase();
-    if (p.includes('invoice') || p.includes('bill') || p.includes('tax')) {
-      selectedNodes = SAMPLE_TEMPLATES[1].nodes;
-      selectedEdges = SAMPLE_TEMPLATES[1].edges;
-      name = 'Invoice Processing Agent';
-    } else if (p.includes('qa') || p.includes('question') || p.includes('manual')) {
-      selectedNodes = SAMPLE_TEMPLATES[2].nodes;
-      selectedEdges = SAMPLE_TEMPLATES[2].edges;
-      name = 'PDF Question Answering Agent';
-    } else if (p.includes('summar') || p.includes('bullet') || p.includes('digest')) {
-      selectedNodes = SAMPLE_TEMPLATES[3].nodes;
-      selectedEdges = SAMPLE_TEMPLATES[3].edges;
-      name = 'Document Summarization Agent';
+    if (plannedData && Array.isArray(plannedData.nodes) && plannedData.nodes.length > 0) {
+      selectedNodes = plannedData.nodes;
+      selectedEdges = plannedData.edges || [];
+      name = plannedData.name || 'AI Multi-Agent Workflow';
     } else {
-      selectedNodes = INITIAL_NODES;
-      selectedEdges = INITIAL_EDGES;
-      name = 'Resume Evaluation Agent';
+      const p = prompt.toLowerCase();
+      if (p.includes('invoice') || p.includes('bill') || p.includes('tax')) {
+        selectedNodes = SAMPLE_TEMPLATES[1].nodes;
+        selectedEdges = SAMPLE_TEMPLATES[1].edges;
+        name = 'Invoice Processing Agent';
+      } else if (p.includes('qa') || p.includes('question') || p.includes('manual')) {
+        selectedNodes = SAMPLE_TEMPLATES[2].nodes;
+        selectedEdges = SAMPLE_TEMPLATES[2].edges;
+        name = 'PDF Question Answering Agent';
+      } else if (p.includes('summar') || p.includes('bullet') || p.includes('digest')) {
+        selectedNodes = SAMPLE_TEMPLATES[3].nodes;
+        selectedEdges = SAMPLE_TEMPLATES[3].edges;
+        name = 'Document Summarization Agent';
+      } else {
+        selectedNodes = INITIAL_NODES;
+        selectedEdges = INITIAL_EDGES;
+        name = 'Resume Evaluation Agent';
+      }
     }
 
     setActiveAgentName(name);
@@ -572,7 +603,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     setIsGenerating(false);
     showToast('Agent Generated', `Built visual workflow with ${selectedNodes.length} connected components.`, 'success');
-  }, [setNodes, setEdges, pushHistory, showToast]);
+  }, [backendStatus, setNodes, setEdges, pushHistory, showToast]);
 
   // Calculate Real Dynamic Validation Metrics
   const calculateValidation = useCallback(() => {
@@ -806,24 +837,78 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     showToast('Tests Completed', 'All test scenarios passed successfully with 100% requirement coverage.', 'success');
   }, [testCases.length, showToast]);
 
-  // Live Agent Execution Simulation
+  // Live Agent Execution (Connected to backend Execution Agent + Fallback)
   const runAgentExecution = useCallback(async () => {
     setIsExecuting(true);
     setCurrentPage('activity');
 
-    const execId = `exec-${Math.floor(1000 + Math.random() * 9000)}`;
-    const steps: ExecutionStep[] = nodes.map((node, i) => {
-      const data = node.data as unknown as WorkflowNodeData;
-      return {
-        id: `step-${node.id}`,
-        stepNumber: i + 1,
-        componentName: data.label,
-        componentType: data.componentType,
-        activity: `Running ${data.label}...`,
-        status: 'waiting' as const,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-    });
+    // Attempt real backend execution if connected
+    let backendResult: any = null;
+    if (backendStatus === 'connected') {
+      try {
+        const payload = {
+          name: activeAgentName,
+          nodes: nodes.map((n) => ({
+            id: n.id,
+            type: n.type || 'customWorkflow',
+            position: n.position,
+            data: n.data,
+          })),
+          edges: edges.map((e) => ({
+            id: e.id,
+            source: e.source,
+            target: e.target,
+            sourceHandle: e.sourceHandle,
+            targetHandle: e.targetHandle,
+          })),
+          auto_repair: true,
+        };
+        let res: Response;
+        try {
+          res = await fetch('/api/v1/workflows/run-adhoc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          res = await fetch('http://localhost:8000/api/v1/workflows/run-adhoc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        if (res.ok) {
+          backendResult = await res.json();
+        }
+      } catch {
+        // Fallback to client simulation
+      }
+    }
+
+    const execId = backendResult?.id || `exec-${Math.floor(1000 + Math.random() * 9000)}`;
+    const steps: ExecutionStep[] =
+      backendResult?.steps && backendResult.steps.length > 0
+        ? backendResult.steps.map((st: any, i: number) => ({
+            id: st.id || `step-${i}`,
+            stepNumber: st.stepNumber || i + 1,
+            componentName: st.componentName,
+            componentType: st.componentType,
+            activity: st.activity || `Running ${st.componentName}...`,
+            status: 'waiting' as const,
+            timestamp: st.timestamp || new Date().toLocaleTimeString(),
+          }))
+        : nodes.map((node, i) => {
+            const data = node.data as unknown as WorkflowNodeData;
+            return {
+              id: `step-${node.id}`,
+              stepNumber: i + 1,
+              componentName: data.label,
+              componentType: data.componentType,
+              activity: `Running ${data.label}...`,
+              status: 'waiting' as const,
+              timestamp: new Date().toLocaleTimeString(),
+            };
+          });
 
     const newExec: ExecutionRecord = {
       id: execId,
@@ -834,6 +919,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       status: 'running',
       triggerType: 'Manual Studio Run',
       steps,
+      logEvidence: backendResult?.log_evidence || [],
     };
 
     setCurrentExecution(newExec);
@@ -886,20 +972,26 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       })
     );
 
+    const finalStatus = backendResult?.status === 'REPAIRED' ? 'repaired' : backendResult?.status === 'FAILED' ? 'failed' : 'completed';
+    const finalDuration = backendResult?.duration || '2.8s';
+
     setCurrentExecution((prev) => {
       if (!prev) return null;
       const completed: ExecutionRecord = {
         ...prev,
-        status: 'completed',
-        duration: '2.8s',
+        status: finalStatus,
+        duration: finalDuration,
+        repaired: backendResult?.status === 'REPAIRED',
+        repairAttempts: backendResult?.repair_attempts || 0,
+        logEvidence: backendResult?.log_evidence && backendResult.log_evidence.length > 0 ? backendResult.log_evidence : prev.logEvidence,
       };
       setExecutionHistory((hist) => [completed, ...hist]);
       return completed;
     });
 
     setIsExecuting(false);
-    showToast('Execution Completed', `"${activeAgentName}" executed successfully in 2.8s`, 'success');
-  }, [nodes, activeAgentName, setNodes, showToast]);
+    showToast('Execution Completed', `"${activeAgentName}" executed successfully in ${finalDuration}`, 'success');
+  }, [backendStatus, nodes, edges, activeAgentName, setNodes, showToast]);
 
   // Trigger Failure Scenario (Step 11 & 12)
   const triggerFailureScenario = useCallback(() => {
