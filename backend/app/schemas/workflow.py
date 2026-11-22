@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 NodeType = Literal[
     "Input",
@@ -49,7 +49,9 @@ class WorkflowConfigurationSchema(BaseModel):
 class WorkflowBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     description: Optional[str] = None
+    status: Optional[str] = "active"
     version: str = "1.0.0"
+    workflow_json: Optional[Dict[str, Any]] = None
     configuration: WorkflowConfigurationSchema = Field(default_factory=WorkflowConfigurationSchema)
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
     edges: List[Dict[str, Any]] = Field(default_factory=list)
@@ -57,13 +59,40 @@ class WorkflowBase(BaseModel):
 
 
 class WorkflowCreate(WorkflowBase):
-    pass
+    """Schema for creating a workflow."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def parse_canonical_format(cls, data: Any) -> Any:
+        """Allow ingesting either standard flat payload or shared/workflow.schema.json canonical structure."""
+        if isinstance(data, dict):
+            # If input conforms directly to shared/workflow.schema.json
+            if "metadata" in data and "nodes" in data and "edges" in data:
+                meta = data.get("metadata", {})
+                config = data.get("configuration", {})
+                return {
+                    "name": meta.get("name") or data.get("name", "Untitled Workflow"),
+                    "description": meta.get("description") or data.get("description"),
+                    "version": meta.get("version", "1.0.0"),
+                    "status": data.get("status", "active"),
+                    "tags": meta.get("tags", []),
+                    "configuration": config,
+                    "nodes": data.get("nodes", []),
+                    "edges": data.get("edges", []),
+                    "workflow_json": data,
+                }
+        return data
 
 
 class WorkflowUpdate(BaseModel):
-    name: Optional[str] = None
+    """Schema for updating an existing workflow."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=120)
     description: Optional[str] = None
+    status: Optional[str] = None
     version: Optional[str] = None
+    is_active: Optional[bool] = None
+    workflow_json: Optional[Dict[str, Any]] = None
     configuration: Optional[WorkflowConfigurationSchema] = None
     nodes: Optional[List[Dict[str, Any]]] = None
     edges: Optional[List[Dict[str, Any]]] = None
@@ -71,18 +100,44 @@ class WorkflowUpdate(BaseModel):
 
 
 class WorkflowRead(WorkflowBase):
+    """Schema for workflow responses."""
+
     id: str
-    is_active: bool
+    status: str = "active"
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def sync_workflow_json(self) -> "WorkflowRead":
+        """Ensure workflow_json is populated with canonical structure if absent."""
+        if not self.workflow_json:
+            self.workflow_json = {
+                "schemaVersion": "1.0.0",
+                "metadata": {
+                    "id": self.id,
+                    "name": self.name,
+                    "description": self.description or "",
+                    "version": self.version,
+                    "tags": self.tags,
+                    "author": "AgentForge AI",
+                    "createdAt": self.created_at.isoformat(),
+                    "updatedAt": self.updated_at.isoformat(),
+                },
+                "configuration": self.configuration.model_dump()
+                if hasattr(self.configuration, "model_dump")
+                else dict(self.configuration),
+                "nodes": self.nodes,
+                "edges": self.edges,
+            }
+        return self
 
 
 class WorkflowValidateRequest(BaseModel):
-    nodes: List[Dict[str, Any]]
-    edges: List[Dict[str, Any]]
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class WorkflowValidateResponse(BaseModel):
@@ -93,24 +148,80 @@ class WorkflowValidateResponse(BaseModel):
 
 
 class WorkflowExecutionCreate(BaseModel):
-    workflow_id: str
-    status: str = "COMPLETED"
-    input_payload: Optional[Dict[str, Any]] = None
+    workflow_id: Optional[str] = None
+    status: str = Field(default="pending", pattern="^(pending|running|completed|failed|repaired|PENDING|RUNNING|COMPLETED|FAILED|REPAIRED)$")
+    input_data: Optional[Dict[str, Any]] = None
+    output_data: Optional[Dict[str, Any]] = None
+    input_payload: Optional[Dict[str, Any]] = None  # backward compatibility
+    output_result: Optional[Dict[str, Any]] = None  # backward compatibility
+    error_message: Optional[str] = None
+    execution_duration: Optional[float] = None
+    repair_attempts: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def harmonize_inputs(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Sync input_data and input_payload
+            if "input_payload" in data and "input_data" not in data:
+                data["input_data"] = data["input_payload"]
+            elif "input_data" in data and "input_payload" not in data:
+                data["input_payload"] = data["input_data"]
+
+            # Sync output_data and output_result
+            if "output_result" in data and "output_data" not in data:
+                data["output_data"] = data["output_result"]
+            elif "output_data" in data and "output_result" not in data:
+                data["output_result"] = data["output_data"]
+        return data
+
+
+class WorkflowExecutionUpdate(BaseModel):
+    status: Optional[str] = Field(None, pattern="^(pending|running|completed|failed|repaired|PENDING|RUNNING|COMPLETED|FAILED|REPAIRED)$")
+    output_data: Optional[Dict[str, Any]] = None
     output_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
-    repair_attempts: int = 0
+    execution_duration: Optional[float] = None
+    repair_attempts: Optional[int] = None
+    completed_at: Optional[datetime] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def harmonize_outputs(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "output_result" in data and "output_data" not in data:
+                data["output_data"] = data["output_result"]
+            elif "output_data" in data and "output_result" not in data:
+                data["output_result"] = data["output_data"]
+        return data
 
 
 class WorkflowExecutionRead(BaseModel):
     id: str
     workflow_id: str
     status: str
+    input_data: Optional[Dict[str, Any]] = None
+    output_data: Optional[Dict[str, Any]] = None
     input_payload: Optional[Dict[str, Any]] = None
     output_result: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+    execution_duration: Optional[float] = None
     repair_attempts: int
     started_at: datetime
     completed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="after")
+    def sync_payload_fields(self) -> "WorkflowExecutionRead":
+        if self.input_payload is None and self.input_data is not None:
+            self.input_payload = self.input_data
+        if self.input_data is None and self.input_payload is not None:
+            self.input_data = self.input_payload
+
+        if self.output_result is None and self.output_data is not None:
+            self.output_result = self.output_data
+        if self.output_data is None and self.output_result is not None:
+            self.output_data = self.output_result
+
+        return self

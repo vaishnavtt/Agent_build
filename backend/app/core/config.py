@@ -21,6 +21,13 @@ class Settings(BaseSettings):
         "http://localhost:3000",
     ]
 
+    # Security & API Key Protection
+    REQUIRE_API_KEY: bool = False
+    API_KEY: str = ""
+
+    # Logging
+    LOG_LEVEL: str = "INFO"
+
     # AI Configuration (Placeholders for Member 3 & Member 5)
     GEMINI_API_KEY: str = ""
     GEMINI_DEFAULT_MODEL: str = "gemini-1.5-pro"
