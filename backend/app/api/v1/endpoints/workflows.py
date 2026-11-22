@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.services.workflow_service import WorkflowService
@@ -12,9 +12,14 @@ from app.schemas.workflow import (
     WorkflowExecutionCreate,
     WorkflowExecutionRead,
 )
+from app.core.security import verify_api_key
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
+
+# -----------------------------------------------------------------------------
+# WORKFLOW CRUD ENDPOINTS
+# -----------------------------------------------------------------------------
 
 @router.get(
     "",
@@ -24,12 +29,13 @@ router = APIRouter()
     description="Retrieve list of active agent workflows stored in SQLite.",
 )
 def list_workflows(
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of records to return"),
+    status: Optional[str] = Query(None, description="Filter by status (active, inactive, draft)"),
     db: Session = Depends(get_db),
 ) -> List[WorkflowRead]:
     service = WorkflowService(db)
-    return service.list_workflows(skip=skip, limit=limit)
+    return service.list_workflows(skip=skip, limit=limit, status=status)
 
 
 @router.post(
@@ -37,7 +43,7 @@ def list_workflows(
     response_model=WorkflowRead,
     status_code=status.HTTP_201_CREATED,
     summary="Create Workflow",
-    description="Persist a new agent workflow graph into SQLite.",
+    description="Persist a new agent workflow graph into SQLite conforming to canonical schema.",
 )
 def create_workflow(
     workflow_in: WorkflowCreate,
@@ -73,7 +79,7 @@ def get_workflow(
     response_model=WorkflowRead,
     status_code=status.HTTP_200_OK,
     summary="Update Workflow",
-    description="Update workflow configuration, nodes, and edges.",
+    description="Update workflow configuration, metadata, nodes, and edges.",
 )
 def update_workflow(
     workflow_id: str,
@@ -94,14 +100,15 @@ def update_workflow(
     "/{workflow_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Workflow",
-    description="Soft-delete workflow graph by marking it inactive.",
+    description="Delete workflow graph. Soft-deletes by default, hard-deletes if hard_delete=true.",
 )
 def delete_workflow(
     workflow_id: str,
+    hard_delete: bool = Query(False, description="Permanently purge record and its execution history"),
     db: Session = Depends(get_db),
 ):
     service = WorkflowService(db)
-    success = service.delete_workflow(workflow_id)
+    success = service.delete_workflow(workflow_id, hard_delete=hard_delete)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -110,12 +117,16 @@ def delete_workflow(
     return None
 
 
+# -----------------------------------------------------------------------------
+# WORKFLOW VALIDATION ENDPOINT
+# -----------------------------------------------------------------------------
+
 @router.post(
     "/validate",
     response_model=WorkflowValidateResponse,
     status_code=status.HTTP_200_OK,
     summary="Validate Workflow Graph",
-    description="Validates topology, required connections, and node configurations.",
+    description="Validates topology, required connections, node configurations, and calculates readiness score.",
 )
 def validate_workflow(
     payload: WorkflowValidateRequest,
@@ -124,6 +135,7 @@ def validate_workflow(
     edges = payload.edges
 
     issues = []
+
     # 1. Structural check: Must have at least 1 node
     if not nodes:
         issues.append(
@@ -156,7 +168,27 @@ def validate_workflow(
             }
         )
 
-    # 3. Check for disconnected nodes if more than 1 node exists
+    # 3. Check for terminal block (Output or FINISH)
+    has_output = any(
+        n.get("data", {}).get("componentType") == "Output"
+        or n.get("type") == "Output"
+        or "output" in n.get("data", {}).get("label", "").lower()
+        or "report" in n.get("data", {}).get("label", "").lower()
+        for n in nodes
+    )
+    if nodes and not has_output:
+        issues.append(
+            {
+                "id": "warn-no-output",
+                "category": "structural",
+                "severity": "warning",
+                "title": "Missing Terminal Step",
+                "description": "Your agent does not have a designated output step to format results.",
+                "suggestedFix": "Add an Output block to present final results.",
+            }
+        )
+
+    # 4. Check for disconnected nodes if more than 1 node exists
     if len(nodes) > 1:
         connected_node_ids = set()
         for e in edges:
@@ -165,7 +197,7 @@ def validate_workflow(
 
         disconnected = [n for n in nodes if n.get("id") not in connected_node_ids]
         for d in disconnected:
-            name = d.get("data", {}).get("label") or d.get("id")
+            name = d.get("data", {}).get("label") or d.get("name") or d.get("id")
             issues.append(
                 {
                     "id": f"conn-{d.get('id')}",
@@ -173,7 +205,7 @@ def validate_workflow(
                     "category": "connection",
                     "severity": "warning",
                     "title": f"'{name}' is Disconnected",
-                    "description": f"This step is not linked to any other step in the workflow.",
+                    "description": "This step is not linked to any other step in the workflow.",
                     "suggestedFix": "Drag a connector line to link this step into your agent's flow.",
                 }
             )
@@ -196,12 +228,16 @@ def validate_workflow(
     )
 
 
+# -----------------------------------------------------------------------------
+# WORKFLOW EXECUTION TELEMETRY ENDPOINTS
+# -----------------------------------------------------------------------------
+
 @router.post(
-    "/{workflow_id}/execute",
+    "/{workflow_id}/executions",
     response_model=WorkflowExecutionRead,
     status_code=status.HTTP_201_CREATED,
     summary="Record Workflow Execution",
-    description="Persist runtime execution telemetry in SQLite.",
+    description="Persist runtime execution telemetry in SQLite associated with the workflow.",
 )
 def record_execution(
     workflow_id: str,
@@ -209,14 +245,29 @@ def record_execution(
     db: Session = Depends(get_db),
 ) -> WorkflowExecutionRead:
     service = WorkflowService(db)
-    # Ensure workflow exists
-    wf = service.get_workflow(workflow_id)
-    if not wf:
+    try:
+        return service.create_execution(execution_in, workflow_id=workflow_id)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Workflow with ID '{workflow_id}' not found.",
+            detail=str(exc),
         )
-    return service.create_execution(execution_in)
+
+
+@router.post(
+    "/{workflow_id}/execute",
+    response_model=WorkflowExecutionRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record Workflow Execution (Legacy Alias)",
+    description="Alias endpoint for backward compatibility with existing tests and integration scripts.",
+    include_in_schema=False,
+)
+def record_execution_alias(
+    workflow_id: str,
+    execution_in: WorkflowExecutionCreate,
+    db: Session = Depends(get_db),
+) -> WorkflowExecutionRead:
+    return record_execution(workflow_id=workflow_id, execution_in=execution_in, db=db)
 
 
 @router.get(
@@ -224,13 +275,26 @@ def record_execution(
     response_model=List[WorkflowExecutionRead],
     status_code=status.HTTP_200_OK,
     summary="List Workflow Executions",
-    description="Get execution history for a workflow.",
+    description="Retrieve execution history specifically associated with this workflow.",
 )
 def list_workflow_executions(
     workflow_id: str,
-    skip: int = 0,
-    limit: int = 50,
+    status: Optional[str] = Query(None, description="Filter by status (pending, running, completed, failed)"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(50, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
 ) -> List[WorkflowExecutionRead]:
     service = WorkflowService(db)
-    return service.list_executions(workflow_id=workflow_id, skip=skip, limit=limit)
+    # Verify workflow exists
+    wf = service.get_workflow(workflow_id, include_inactive=True)
+    if not wf:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID '{workflow_id}' not found.",
+        )
+    return service.list_executions(
+        workflow_id=workflow_id,
+        skip=skip,
+        limit=limit,
+        status=status,
+    )
