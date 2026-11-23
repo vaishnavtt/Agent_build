@@ -24,6 +24,7 @@ import {
   WorkflowNodeData,
   RequirementCoverageItem,
   ExecutionLogEntry,
+  ExecutionPlanResponse,
 } from '../types';
 import {
   COMPONENT_DEFINITIONS,
@@ -95,6 +96,10 @@ interface WorkflowContextType {
   generateAgentFromPrompt: (prompt: string) => Promise<void>;
   isGenerating: boolean;
   generationStep: number;
+  analysisResult: ExecutionPlanResponse | null;
+  setAnalysisResult: (result: ExecutionPlanResponse | null) => void;
+  isAnalyzing: boolean;
+  analyzeRequirements: (description: string, clarificationAnswers?: Record<string, string>) => Promise<ExecutionPlanResponse | null>;
   testCases: TestCase[];
   generateRequirementTests: () => void;
   runTestCases: () => Promise<void>;
@@ -186,6 +191,10 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // AI Prompt Generation State
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationStep, setGenerationStep] = useState<number>(0);
+
+  // Member 2: AI Requirement Analysis & Execution Plan State
+  const [analysisResult, setAnalysisResult] = useState<ExecutionPlanResponse | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
 
   // Validation, Requirement Coverage & Testing
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
@@ -604,6 +613,54 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsGenerating(false);
     showToast('Agent Generated', `Built visual workflow with ${selectedNodes.length} connected components.`, 'success');
   }, [backendStatus, setNodes, setEdges, pushHistory, showToast]);
+
+  // Member 2: Analyze requirements using LangGraph and Gemini backend
+  const analyzeRequirements = useCallback(async (
+    description: string,
+    clarificationAnswers?: Record<string, string>
+  ): Promise<ExecutionPlanResponse | null> => {
+    setIsAnalyzing(true);
+    try {
+      const payload = {
+        description,
+        clarification_answers: clarificationAnswers || {},
+      };
+      let res: Response;
+      try {
+        res = await fetch('/api/v1/agents/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch {
+        res = await fetch('http://localhost:8000/api/v1/agents/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (res.ok) {
+        const data: ExecutionPlanResponse = await res.json();
+        setAnalysisResult(data);
+        if (data.status === 'ready') {
+          showToast('Requirement Analysis Complete', `Plan ready with ${data.tasks.length} ordered tasks.`, 'success');
+        } else {
+          showToast('Clarification Needed', `Please clarify ${data.clarification_questions.length} items to proceed.`, 'warning');
+        }
+        return data;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast('Analysis Error', err.detail || 'Failed to analyze requirements.', 'error');
+        return null;
+      }
+    } catch {
+      showToast('Network Notice', 'Backend unavailable, using simulated analysis.', 'info');
+      return null;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [showToast]);
 
   // Calculate Real Dynamic Validation Metrics
   const calculateValidation = useCallback(() => {
@@ -1211,6 +1268,10 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         generateAgentFromPrompt,
         isGenerating,
         generationStep,
+        analysisResult,
+        setAnalysisResult,
+        isAnalyzing,
+        analyzeRequirements,
         testCases,
         generateRequirementTests,
         runTestCases,

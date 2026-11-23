@@ -70,13 +70,14 @@ Agent_build/
 │   │   │   ├── execution_agent.py
 │   │   │   ├── validation_agent.py
 │   │   │   ├── error_detection_agent.py
-│   │   │   └── self_repair_agent.py
+│   │   │   ├── self_repair_agent.py
+│   │   │   └── requirement_analysis_agent.py # Member 2 LangGraph Architect
 │   │   ├── api/v1/endpoints/    # REST endpoints (health, workflows, agents)
 │   │   ├── core/                # Settings, environment, & Gemini client
 │   │   ├── database/            # SQLAlchemy SQLite session & models
 │   │   ├── models/              # Workflow & Execution database models
-│   │   └── services/            # Workflow business logic service
-│   ├── tests/                   # Pytest automated test suite (13 tests)
+│   │   └── services/            # Workflow & Requirement analysis services
+│   ├── tests/                   # Pytest automated test suite (24 tests)
 │   └── requirements.txt
 ├── shared/                       # Shared schemas and node definitions
 ├── docs/                         # Architecture & API specifications

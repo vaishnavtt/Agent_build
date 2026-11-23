@@ -14,6 +14,11 @@ import {
   FileText,
   Sliders,
   Check,
+  AlertCircle,
+  ListOrdered,
+  Layers,
+  Send,
+  Code,
 } from 'lucide-react';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { ElevatedButton } from '../common/ElevatedButton';
@@ -28,6 +33,10 @@ export const CreateAgentPage: React.FC = () => {
     isGenerating,
     generationStep,
     setCurrentPage,
+    analyzeRequirements,
+    analysisResult,
+    isAnalyzing,
+    setAnalysisResult,
   } = useWorkflow();
 
   const examplePrompts = [
@@ -56,6 +65,8 @@ export const CreateAgentPage: React.FC = () => {
   const [prompt, setPrompt] = useState(activePrompt || examplePrompts[0].text);
   const [inputPref, setInputPref] = useState('PDF Documents');
   const [stylePref, setStylePref] = useState('High Precision');
+  const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+  const [showJsonPlan, setShowJsonPlan] = useState<boolean>(false);
 
   useEffect(() => {
     if (activePrompt) {
@@ -68,8 +79,22 @@ export const CreateAgentPage: React.FC = () => {
     generateAgentFromPrompt(textToUse);
   };
 
+  const handleAnalyze = async () => {
+    const textToUse = prompt.trim() || examplePrompts[0].text;
+    await analyzeRequirements(textToUse, clarificationAnswers);
+  };
+
+  const handleClarificationAnswerChange = (questionId: string, answerText: string) => {
+    setClarificationAnswers((prev) => ({
+      ...prev,
+      [questionId]: answerText,
+    }));
+  };
+
   const handleClear = () => {
     setPrompt('');
+    setAnalysisResult(null);
+    setClarificationAnswers({});
   };
 
   // Friendly generation steps strictly matching Phase 6
@@ -199,7 +224,7 @@ export const CreateAgentPage: React.FC = () => {
 
         {/* 3D Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <ElevatedButton
               variant="primary"
               size="lg"
@@ -214,9 +239,20 @@ export const CreateAgentPage: React.FC = () => {
 
             <ElevatedButton
               variant="secondary"
+              size="lg"
+              onClick={handleAnalyze}
+              loading={isAnalyzing}
+              loadingText="Analyzing Requirements..."
+              icon={<BrainCircuit className="w-4 h-4 text-[#B15F2C]" />}
+            >
+              Analyze Requirements
+            </ElevatedButton>
+
+            <ElevatedButton
+              variant="secondary"
               size="md"
               onClick={handleClear}
-              disabled={isGenerating || !prompt}
+              disabled={isGenerating || isAnalyzing || !prompt}
               icon={<RotateCcw className="w-3.5 h-3.5 text-[#777777]" />}
             >
               Clear
@@ -230,6 +266,240 @@ export const CreateAgentPage: React.FC = () => {
             <span>Or pick a ready-made template →</span>
           </button>
         </div>
+
+        {/* Member 2: AI Requirement Analysis & Architecture Plan Panel */}
+        {analysisResult && (
+          <div className="mt-6 p-6 rounded-3xl bg-white border-2 border-[#CF8047]/30 shadow-card space-y-6 animate-in fade-in duration-300">
+            {/* Header: Objective & Status */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#EAE8E5]">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 flex items-center gap-1">
+                    <BrainCircuit className="w-3 h-3" />
+                    Member 2 AI Architect
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    {analysisResult.ai_provider === 'google-gemini' ? 'Google Gemini AI' : 'Deterministic Engine'}
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-[#111111]">
+                  {analysisResult.project_objective}
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                    analysisResult.status === 'ready'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                      : 'bg-amber-50 text-amber-700 border-amber-300'
+                  }`}
+                >
+                  {analysisResult.status === 'ready' ? '✓ Plan Ready' : '⚠ Clarification Needed'}
+                </span>
+                <button
+                  onClick={() => setShowJsonPlan((prev) => !prev)}
+                  className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-[#F7F6F4] hover:bg-[#EAE8E5] text-[#111111] border border-[#EAE8E5] transition-colors flex items-center gap-1"
+                >
+                  <Code className="w-3.5 h-3.5" />
+                  <span>{showJsonPlan ? 'Hide JSON' : 'View Plan JSON'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Clarification Questions (if needed) */}
+            {analysisResult.status === 'needs_clarification' && analysisResult.clarification_questions.length > 0 && (
+              <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-4">
+                <div className="flex items-center gap-2 text-amber-800 text-xs font-bold">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <span>Missing or Ambiguous Requirements Detected</span>
+                </div>
+                <p className="text-xs text-amber-900/80">
+                  To avoid generating an unreliable execution plan, please clarify the following details:
+                </p>
+
+                <div className="space-y-3">
+                  {analysisResult.clarification_questions.map((q) => (
+                    <div key={q.id} className="p-3 bg-white rounded-xl border border-amber-200 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <label className="text-xs font-bold text-[#111111]">
+                          <span className="text-[#B15F2C] mr-1">[{q.id}]</span>
+                          {q.question}
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-[#777777] italic bg-[#F7F6F4] p-1.5 rounded-lg border border-[#EAE8E5]">
+                        <strong>Why clarification is needed:</strong> {q.reason}
+                      </p>
+                      <input
+                        type="text"
+                        placeholder="Type your clarification answer here..."
+                        value={clarificationAnswers[q.id] || ''}
+                        onChange={(e) => handleClarificationAnswerChange(q.id, e.target.value)}
+                        className="w-full text-xs text-[#111111] bg-white border border-[#EAE8E5] rounded-lg px-3 py-2 focus:outline-none focus:border-[#B15F2C]"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-1 flex justify-end">
+                  <ElevatedButton
+                    variant="primary"
+                    size="md"
+                    onClick={handleAnalyze}
+                    loading={isAnalyzing}
+                    loadingText="Updating Plan..."
+                    icon={<Send className="w-3.5 h-3.5" />}
+                  >
+                    Submit Answers & Re-Analyze Plan
+                  </ElevatedButton>
+                </div>
+              </div>
+            )}
+
+            {/* Extracted Requirements Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-3.5 rounded-2xl bg-[#F7F6F4]/90 border border-[#EAE8E5] space-y-2">
+                <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                  Identified Inputs
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {analysisResult.requirements.inputs.map((inp, idx) => (
+                    <span key={idx} className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-medium">
+                      {inp}
+                    </span>
+                  ))}
+                  {analysisResult.requirements.inputs.length === 0 && (
+                    <span className="text-[#777777] italic text-[11px]">None specified</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F7F6F4]/90 border border-[#EAE8E5] space-y-2">
+                <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                  Processing Steps
+                </span>
+                <ol className="list-decimal list-inside space-y-1 text-[#111111] text-[11px]">
+                  {analysisResult.requirements.processing.map((step, idx) => (
+                    <li key={idx} className="leading-snug">{step}</li>
+                  ))}
+                </ol>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#F7F6F4]/90 border border-[#EAE8E5] space-y-2">
+                <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                  Expected Outputs
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {analysisResult.requirements.outputs.map((out, idx) => (
+                    <span key={idx} className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-medium">
+                      {out}
+                    </span>
+                  ))}
+                  {analysisResult.requirements.outputs.length === 0 && (
+                    <span className="text-[#777777] italic text-[11px]">None specified</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Canonical Workflow Components */}
+            <div className="space-y-2">
+              <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                Selected Canonical Components ({analysisResult.required_components.length})
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {analysisResult.required_components.map((comp, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 text-xs font-bold"
+                  >
+                    <Boxes className="w-3.5 h-3.5" />
+                    <span>{comp}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Ordered Task Decomposition */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                  Ordered Task Decomposition ({analysisResult.tasks.length} Executable Tasks)
+                </span>
+                <span className="text-[11px] text-[#777777]">Sequential execution order</span>
+              </div>
+
+              <div className="space-y-2">
+                {analysisResult.tasks.map((task) => (
+                  <div
+                    key={task.task_id}
+                    className="p-3 rounded-2xl bg-white border border-[#EAE8E5] hover:border-[#CF8047]/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-subtle"
+                  >
+                    <div className="flex items-start sm:items-center gap-3">
+                      <span className="w-7 h-7 rounded-xl bg-[#B15F2C] text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
+                        {task.task_id}
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-[#111111]">{task.task_name}</p>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/20">
+                            {task.component}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#777777] mt-0.5">{task.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-[#777777] sm:text-right flex-shrink-0">
+                      {task.dependencies && task.dependencies.length > 0 ? (
+                        <span>Depends on: <strong className="text-[#111111]">{task.dependencies.join(', ')}</strong></span>
+                      ) : (
+                        <span className="text-emerald-700 font-medium">Initial trigger</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Raw JSON Plan for Member 3 Integration */}
+            {showJsonPlan && (
+              <div className="space-y-2 animate-in fade-in">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block">
+                    Execution Plan Contract (Member 3 Compatible JSON)
+                  </span>
+                  <span className="text-[11px] text-[#777777]">Schema v{analysisResult.contract_version}</span>
+                </div>
+                <pre className="p-4 rounded-2xl bg-[#111111] text-emerald-400 font-mono text-xs overflow-x-auto max-h-72 border border-slate-800">
+                  {JSON.stringify(analysisResult, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {/* Hand-off Action to Member 3 */}
+            {analysisResult.status === 'ready' && (
+              <div className="p-4 rounded-2xl bg-[#FAF5F1] border border-[#CF8047]/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-xs">
+                  <strong className="text-[#B15F2C]">Ready for Workflow Generation:</strong>
+                  <p className="text-[#777777] text-[11px] mt-0.5">
+                    Plan is validated. Member 3 can transform this structured execution plan into visual canvas nodes.
+                  </p>
+                </div>
+                <ElevatedButton
+                  variant="primary"
+                  size="md"
+                  onClick={handleGenerate}
+                  icon={<ArrowRight className="w-4 h-4" />}
+                  iconPosition="right"
+                  glow
+                >
+                  Generate Visual Workflow
+                </ElevatedButton>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 5. Friendly Generation Animation */}
         {(isGenerating || isComplete) && (

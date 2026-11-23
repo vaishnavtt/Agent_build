@@ -54,7 +54,20 @@ Lists all 6 specialized AI agents with roles and active capabilities.
   5. **Error Detection Agent** – Failure diagnosis & Diagnostic Triad
   6. **Self-Repair Agent** – Autonomous 5-stage repair loop (max 2 attempts)
 
-### 2.2 Plan Workflow with Planner Agent
+### 2.2 AI Requirement Analysis & Agent Architect (Member 2)
+Analyzes natural language instructions using LangGraph and Gemini, extracts requirements, decomposes tasks, identifies components, and produces a structured execution plan for Member 3.
+- **Method**: `POST`
+- **Path**: `/api/v1/agents/analyze`
+- **Request Body**:
+```json
+{
+  "description": "Create an AI agent that reads PDF resumes, extracts candidate skills, compares with job descriptions and produces a scorecard.",
+  "clarification_answers": {}
+}
+```
+- **Response**: `200 OK` with `ExecutionPlanResponse` (`shared/execution_plan.schema.json`).
+
+### 2.3 Plan Workflow with Planner Agent
 - **Method**: `POST`
 - **Path**: `/api/v1/agents/plan`
 - **Request Body**:

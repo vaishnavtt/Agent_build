@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecutionPlanResponse",
+  "description": "AgentForge AI Member 2 Contract: Structured Execution Plan for Member 3 (Workflow Generation)",
+  "type": "object",
+  "required": [
+    "project_objective",
+    "status",
+    "requirements",
+    "tasks",
+    "required_components",
+    "clarification_questions",
+    "confidence_score",
+    "contract_version"
+  ],
+  "properties": {
+    "project_objective": {
+      "type": "string",
+      "description": "High-level goal and purpose of the synthesized agent workflow"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["ready", "needs_clarification"],
+      "description": "Status of the execution plan: ready for visual graph generation or needs user clarification"
+    },
+    "requirements": {
+      "type": "object",
+      "required": ["inputs", "processing", "outputs", "tools", "constraints"],
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Extracted trigger and input sources required (e.g. PDF resumes, user prompts)"
+        },
+        "processing": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Deconstructed logical processing steps"
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Expected deliverables, reports, or formatted outputs"
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "External tools, services, or APIs"
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Operational constraints, human approval gates, or thresholds"
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "task_id",
+          "task_name",
+          "description",
+          "component",
+          "input",
+          "expected_output",
+          "dependencies",
+          "execution_order"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Unique identifier for the task, e.g. T1, T2"
+          },
+          "task_name": {
+            "type": "string",
+            "description": "Concise human-readable name of the task"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed explanation of what the task performs"
+          },
+          "task_description": {
+            "type": "string",
+            "description": "Alias for description"
+          },
+          "component": {
+            "type": "string",
+            "enum": [
+              "Input",
+              "LLM",
+              "Document Reader",
+              "Tool",
+              "Condition",
+              "Human Approval",
+              "Output"
+            ],
+            "description": "Canonical workflow component type strictly adhering to the 7 supported primitives"
+          },
+          "component_type": {
+            "type": "string",
+            "enum": [
+              "Input",
+              "LLM",
+              "Document Reader",
+              "Tool",
+              "Condition",
+              "Human Approval",
+              "Output"
+            ]
+          },
+          "required_component": {
+            "type": "string",
+            "enum": [
+              "Input",
+              "LLM",
+              "Document Reader",
+              "Tool",
+              "Condition",
+              "Human Approval",
+              "Output"
+            ]
+          },
+          "input": {
+            "type": "string",
+            "description": "Description of data or source ingested by this task"
+          },
+          "expected_output": {
+            "type": "string",
+            "description": "Expected artifact or state produced by this task"
+          },
+          "dependencies": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of prerequisite task_ids that must complete prior to this task"
+          },
+          "execution_order": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1-based topological sequence order"
+          },
+          "component_config_hints": {
+            "type": "object",
+            "description": "Configuration parameter recommendations for Member 3 node configuration"
+          }
+        }
+      }
+    },
+    "required_components": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Input",
+          "LLM",
+          "Document Reader",
+          "Tool",
+          "Condition",
+          "Human Approval",
+          "Output"
+        ]
+      },
+      "description": "Deduplicated list of canonical components required for this workflow"
+    },
+    "clarification_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "question", "reason"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Question ID, e.g. Q1, Q2"
+          },
+          "question": {
+            "type": "string",
+            "description": "The clarification question text"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Explicit reason why clarification is needed to construct a reliable plan"
+          },
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence score of requirement analysis completeness"
+    },
+    "architecture_summary": {
+      "type": "string",
+      "description": "Technical architecture summary of the designed agent"
+    },
+    "ai_provider": {
+      "type": "string",
+      "enum": ["google-gemini", "deterministic_engine", "mock"],
+      "description": "Engine that performed the requirement extraction"
+    },
+    "model_used": {
+      "type": ["string", "null"],
+      "description": "Specific Gemini model used (e.g. gemini-1.5-pro) or null if fallback"
+    },
+    "contract_version": {
+      "type": "string",
+      "description": "Contract schema version"
+    }
+  }
+}

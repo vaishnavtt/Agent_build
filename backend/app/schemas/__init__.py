@@ -10,6 +10,15 @@ from .workflow import (
     WorkflowCreate,
     WorkflowRead,
 )
+from .requirement_analysis import (
+    SupportedComponent,
+    SUPPORTED_COMPONENTS_LIST,
+    TaskDecompositionItem,
+    RequirementsBreakdown,
+    ClarificationQuestion,
+    AnalysisRequest,
+    ExecutionPlanResponse,
+)
 
 __all__ = [
     "HealthCheckResponse",
@@ -21,5 +30,12 @@ __all__ = [
     "WorkflowBase",
     "WorkflowCreate",
     "WorkflowRead",
+    "SupportedComponent",
+    "SUPPORTED_COMPONENTS_LIST",
+    "TaskDecompositionItem",
+    "RequirementsBreakdown",
+    "ClarificationQuestion",
+    "AnalysisRequest",
+    "ExecutionPlanResponse",
 ]
 

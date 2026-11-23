@@ -16,6 +16,8 @@ from app.agents.execution_agent import ExecutionAgent
 from app.agents.validation_agent import ValidationAgent
 from app.agents.error_detection_agent import ErrorDetectionAgent
 from app.agents.self_repair_agent import SelfRepairAgent
+from app.agents.requirement_analysis_agent import RequirementAnalysisAgent
+from app.schemas.requirement_analysis import AnalysisRequest, ExecutionPlanResponse
 
 router = APIRouter()
 
@@ -142,3 +144,29 @@ def diagnose_error(payload: DiagnoseRequest) -> Dict[str, Any]:
 def repair_workflow(payload: RepairRequest) -> Dict[str, Any]:
     agent = SelfRepairAgent()
     return agent.repair_workflow(payload.workflow, payload.diagnosis, payload.attempt)
+
+
+@router.post(
+    "/analyze",
+    response_model=ExecutionPlanResponse,
+    summary="Analyze Requirements & Architect Agent Plan",
+    description="Analyzes natural language instructions using LangGraph AI planning, extracts requirements, decomposes tasks, identifies components, and produces a structured execution plan for Member 3.",
+)
+def analyze_requirements(payload: AnalysisRequest) -> ExecutionPlanResponse:
+    if not payload.description or len(payload.description.strip()) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Description must contain at least 3 characters.",
+        )
+    try:
+        agent = RequirementAnalysisAgent()
+        return agent.analyze(
+            description=payload.description,
+            clarification_answers=payload.clarification_answers,
+            context=payload.context,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Requirement analysis failed: {str(e)}",
+        )

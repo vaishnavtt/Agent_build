@@ -167,3 +167,56 @@ export interface AgentSummary {
   nodes: any[];
   edges: any[];
 }
+
+// ---------------------------------------------------------------------------
+// Member 2: AI Requirement Analysis & Agent Architect Types
+// ---------------------------------------------------------------------------
+export interface TaskDecompositionItem {
+  task_id: string;
+  task_name: string;
+  description: string;
+  task_description?: string;
+  component: ComponentType;
+  component_type?: ComponentType;
+  required_component?: ComponentType;
+  input: string;
+  expected_output: string;
+  dependencies: string[];
+  execution_order: number;
+  component_config_hints?: Record<string, any>;
+}
+
+export interface RequirementsBreakdown {
+  inputs: string[];
+  processing: string[];
+  outputs: string[];
+  tools: string[];
+  constraints: string[];
+}
+
+export interface ClarificationQuestion {
+  id: string;
+  question: string;
+  reason: string;
+  category?: string;
+}
+
+export interface ExecutionPlanResponse {
+  project_objective: string;
+  status: 'ready' | 'needs_clarification';
+  requirements: RequirementsBreakdown;
+  tasks: TaskDecompositionItem[];
+  required_components: ComponentType[];
+  clarification_questions: ClarificationQuestion[];
+  confidence_score: number;
+  architecture_summary?: string;
+  ai_provider: 'google-gemini' | 'deterministic_engine' | 'mock';
+  model_used?: string;
+  contract_version: string;
+}
+
+export interface AnalysisRequest {
+  description: string;
+  clarification_answers?: Record<string, string>;
+  context?: Record<string, any>;
+}
