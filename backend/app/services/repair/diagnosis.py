@@ -32,6 +32,21 @@ class DiagnosticCode(StrEnum):
     AMBIGUOUS_INPUT_MAPPING = "AMBIGUOUS_INPUT_MAPPING"
 
 
+class ExternalDiagnosticFact(StrEnum):
+    OUTPUT_SHAPE_MISMATCH = "output_shape_mismatch"
+    NODE_EXECUTION_HALTED = "node_execution_halted"
+    TEST_ASSERTION_MISMATCH = "test_assertion_mismatch"
+    UPSTREAM_OUTPUT_PRESENT = "upstream_output_present"
+
+
+@dataclass(frozen=True)
+class ExternalDiagnosisEvidence:
+    """Allowlisted observations and explicit clearance from the trusted run adapter."""
+
+    facts: tuple[ExternalDiagnosticFact, ...]
+    cleared_for_external_diagnosis: bool = False
+
+
 @dataclass(frozen=True)
 class ConfigurationFieldDefinition:
     """An exact key in the approved configuration representation for a node type."""
@@ -41,6 +56,7 @@ class ConfigurationFieldDefinition:
     allow_blank: bool = False
     is_instruction_field: bool = False
     allow_automatic_repair: bool = False
+    allow_external_diagnosis: bool = False
 
     def is_missing(self, value: object) -> bool:
         return value is None or (
@@ -73,6 +89,7 @@ class DiagnosisContext:
     execution_run_id: str
     nodes: tuple[DiagnosticNode, ...]
     configuration_evidence: ConfigurationEvidence | None = None
+    external_evidence: ExternalDiagnosisEvidence | None = None
 
 
 class FailureDiagnoser(Protocol):

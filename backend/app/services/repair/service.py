@@ -18,6 +18,12 @@ structural validation, execution, and the original failed and regression tests
 before promotion. The coordinator should reserve and persist each attempt using
 MAX_AUTOMATIC_REPAIR_ATTEMPTS from the repair contract. Planning and application
 do not allocate attempts or provide durable enforcement across requests.
+
+For external diagnosis, Members 3, 4, and 5 must agree on approved field names,
+allowlisted error codes and observations, and when a run is cleared for Gemini.
+Member 2 can share credential setup, while GEMINI_DIAGNOSIS_MODEL selects a
+structured-output model for Member 6. The adapter does not export requirements
+or workflow contents. Gemini hypotheses remain advisory.
 """
 
 from dataclasses import dataclass, field

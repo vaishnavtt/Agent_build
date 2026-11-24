@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # AI Configuration (Placeholders for Member 3 & Member 5)
     GEMINI_API_KEY: str = ""
     GEMINI_DEFAULT_MODEL: str = "gemini-1.5-pro"
+    GEMINI_DIAGNOSIS_MODEL: str = ""
 
     # Execution Engine Configuration (Member 5 & Member 6)
     DEFAULT_TIMEOUT_SECONDS: int = 300
