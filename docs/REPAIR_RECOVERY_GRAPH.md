@@ -1,5 +1,8 @@
 # Member 6 recovery graph
 
+See [Member 6 implementation and team handoff](MEMBER6_IMPLEMENTATION.md) for
+the API, production readiness, and durable reservation adapter.
+
 Phase 5 compiles a LangGraph `StateGraph` for one recovery invocation. It calls
 the existing deterministic-first diagnosis router and scalar repair planner.
 Snapshot, verification, promotion, rollback, and recording adapters are injected.
@@ -15,6 +18,7 @@ flowchart TD
     Snapshot -->|Snapshot matches| Plan[Plan a safe correction]
     Plan -->|New safe correction| Reserve[Check budget and reserve attempt]
     Reserve -->|Within limit| Apply[Apply to isolated candidate]
+    Reserve -->|Durable reservation denied| Finish[Finalize and request recording]
     Apply -->|Created| Verify[Request verification and original baseline]
     Verify --> Evaluate[Evaluate revision-bound evidence]
     Evaluate --> Decide[Decide outcome]
@@ -23,7 +27,7 @@ flowchart TD
     Decide -->|Confirmed failure at limit| Rollback[Request rollback]
     Plan -->|No safe alternative after a failed candidate| Rollback
     Reserve -->|Limit reached| Rollback
-    Context -->|Invalid| Finish[Finalize and request recording]
+    Context -->|Invalid| Finish
     Eligibility -->|Human review or unresolved| Finish
     Snapshot -->|Unavailable or stale| Finish
     Plan -->|Blocked before first attempt| Finish
