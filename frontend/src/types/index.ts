@@ -190,8 +190,39 @@ export interface RequirementsBreakdown {
   inputs: string[];
   processing: string[];
   outputs: string[];
+  expected_outputs?: string[];
   tools: string[];
   constraints: string[];
+  functional?: string[];
+  non_functional?: string[];
+}
+
+export interface AcceptanceCriterion {
+  id: string;
+  requirement_id?: string;
+  criteria: string;
+  description?: string;
+  pass_condition?: string;
+}
+
+export interface EdgeCaseScenario {
+  scenario_id: string;
+  description: string;
+  input_condition: string;
+  expected_behavior: string;
+  expected_result?: string;
+  severity: 'Low' | 'Medium' | 'High' | 'Critical';
+}
+
+export interface TestScenario {
+  test_id: string;
+  requirement_id?: string;
+  test_description: string;
+  test_input: any;
+  expected_output: any;
+  expected_status: string;
+  pass_fail_condition: string;
+  scenario_type: 'positive' | 'negative' | 'edge_case';
 }
 
 export interface ClarificationQuestion {
@@ -206,8 +237,14 @@ export interface ExecutionPlanResponse {
   status: 'ready' | 'needs_clarification';
   requirements: RequirementsBreakdown;
   tasks: TaskDecompositionItem[];
+  execution_plan?: TaskDecompositionItem[];
   required_components: ComponentType[];
+  components?: ComponentType[];
   clarification_questions: ClarificationQuestion[];
+  acceptance_criteria?: AcceptanceCriterion[];
+  edge_cases?: EdgeCaseScenario[];
+  test_scenarios?: TestScenario[];
+  assumptions?: string[];
   confidence_score: number;
   architecture_summary?: string;
   ai_provider: 'google-gemini' | 'deterministic_engine' | 'mock';

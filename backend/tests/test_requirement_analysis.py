@@ -274,3 +274,111 @@ def test_member_3_contract_structure():
     # Verify no React Flow nodes or edges were generated (Member 3 responsibility)
     assert "nodes" not in plan_dict
     assert "edges" not in plan_dict
+
+
+# ---------------------------------------------------------------------------
+# 8. Weather Prediction Agent & Multi-Domain Verification
+# ---------------------------------------------------------------------------
+def test_weather_prediction_agent_analysis():
+    """Verify natural-language requirement analysis for weather prediction agent."""
+    prompt = (
+        "Create an AI agent that predicts weather conditions using temperature, "
+        "humidity, and wind speed and provides a weather prediction report."
+    )
+    service = RequirementAnalysisService()
+    plan: ExecutionPlanResponse = service.analyze_requirements(description=prompt)
+
+    # 1. Objective & Status
+    assert plan.status == "ready"
+    assert "weather" in plan.project_objective.lower()
+
+    # 2. Extracted Requirements
+    assert len(plan.requirements.inputs) >= 3
+    assert any("temperature" in i.lower() for i in plan.requirements.inputs)
+    assert any("humidity" in i.lower() for i in plan.requirements.inputs)
+    assert any("wind" in i.lower() for i in plan.requirements.inputs)
+    assert any("report" in o.lower() for o in plan.requirements.outputs)
+    assert len(plan.requirements.functional) >= 3
+    assert len(plan.requirements.non_functional) >= 1
+
+    # 3. Tasks & Components
+    assert len(plan.tasks) == 4
+    for idx, task in enumerate(plan.tasks, start=1):
+        assert task.execution_order == idx
+        assert task.component in SUPPORTED_COMPONENTS_LIST
+
+    assert "Input" in plan.required_components
+    assert "LLM" in plan.required_components
+    assert "Condition" in plan.required_components
+    assert "Output" in plan.required_components
+
+    # 4. Aliases
+    assert plan.execution_plan == plan.tasks
+    assert plan.components == plan.required_components
+
+
+# ---------------------------------------------------------------------------
+# 9. Acceptance Criteria Generation for Member 5
+# ---------------------------------------------------------------------------
+def test_acceptance_criteria_generation():
+    """Verify acceptance criteria are generated with measurable, testable conditions."""
+    prompt = (
+        "Create an AI agent that predicts weather conditions using temperature, "
+        "humidity, and wind speed and provides a weather prediction report."
+    )
+    service = RequirementAnalysisService()
+    plan = service.analyze_requirements(description=prompt)
+
+    assert len(plan.acceptance_criteria) >= 3
+    for ac in plan.acceptance_criteria:
+        assert ac.id.startswith("AC")
+        assert len(ac.criteria) > 10
+        assert ac.pass_condition is not None
+        assert len(ac.pass_condition) > 5
+
+
+# ---------------------------------------------------------------------------
+# 10. Edge Case & Failure Mode Analysis
+# ---------------------------------------------------------------------------
+def test_edge_case_and_failure_analysis():
+    """Verify edge case scenarios identify abnormal inputs, expected behaviors, and severity."""
+    service = RequirementAnalysisService()
+    plan = service.analyze_requirements(
+        "Create an AI agent that reads PDF resumes, extracts candidate skills, compares with job descriptions and produces a scorecard."
+    )
+
+    assert len(plan.edge_cases) >= 3
+    severities = set()
+    for ec in plan.edge_cases:
+        assert ec.scenario_id.startswith("EC")
+        assert len(ec.description) > 5
+        assert len(ec.input_condition) > 5
+        assert len(ec.expected_behavior) > 10
+        assert ec.severity in ["Low", "Medium", "High", "Critical"]
+        severities.add(ec.severity)
+
+    assert "High" in severities
+
+
+# ---------------------------------------------------------------------------
+# 11. Automated Test Scenario Generation for Member 5
+# ---------------------------------------------------------------------------
+def test_test_scenarios_generation():
+    """Verify positive, negative, and edge case test scenarios for Member 5 test harness."""
+    prompt = (
+        "Create an AI agent that predicts weather conditions using temperature, "
+        "humidity, and wind speed and provides a weather prediction report."
+    )
+    service = RequirementAnalysisService()
+    plan = service.analyze_requirements(description=prompt)
+
+    assert len(plan.test_scenarios) >= 3
+    types = {ts.scenario_type for ts in plan.test_scenarios}
+    assert "positive" in types
+    assert "negative" in types
+
+    for ts in plan.test_scenarios:
+        assert ts.test_id.startswith("TS")
+        assert len(ts.test_description) > 10
+        assert len(ts.pass_fail_condition) > 10
+        assert ts.expected_status in ["SUCCESS", "FAILURE", "ERROR"]

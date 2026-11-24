@@ -336,3 +336,58 @@ def list_workflow_executions(
 ) -> List[WorkflowExecutionRead]:
     service = WorkflowService(db)
     return service.list_executions(workflow_id=workflow_id, skip=skip, limit=limit)
+
+
+@router.get(
+    "/{workflow_id}/history",
+    response_model=List[WorkflowExecutionRead],
+    status_code=status.HTTP_200_OK,
+    summary="Get Workflow Execution History",
+    description="Retrieve execution history records for a specific workflow.",
+)
+def get_workflow_history(
+    workflow_id: str,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> List[WorkflowExecutionRead]:
+    service = WorkflowService(db)
+    wf = service.get_workflow(workflow_id)
+    if not wf:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID '{workflow_id}' not found.",
+        )
+    return service.get_execution_history(workflow_id=workflow_id, skip=skip, limit=limit)
+
+
+@router.post(
+    "/{workflow_id}/validate",
+    response_model=WorkflowValidateResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Validate Saved Workflow Structure & Connections",
+    description="Validates topology, node completeness, and connection rules of a specific saved workflow.",
+)
+def validate_saved_workflow(
+    workflow_id: str,
+    payload: Optional[WorkflowValidateRequest] = None,
+    db: Session = Depends(get_db),
+) -> WorkflowValidateResponse:
+    service = WorkflowService(db)
+    wf = service.get_workflow(workflow_id)
+    if not wf:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID '{workflow_id}' not found.",
+        )
+
+    nodes = (payload.nodes if payload and payload.nodes is not None else None) or wf.nodes or []
+    edges = (payload.edges if payload and payload.edges is not None else None) or wf.edges or []
+    agent = ValidationAgent()
+    res = agent.validate_workflow(nodes, edges)
+    return WorkflowValidateResponse(
+        is_valid=res["is_valid"],
+        readiness_score=res["readiness_score"],
+        issues=res["issues"],
+        metrics=res["metrics"],
+    )

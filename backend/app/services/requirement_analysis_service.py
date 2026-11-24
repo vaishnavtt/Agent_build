@@ -22,6 +22,9 @@ from app.schemas.requirement_analysis import (
     SUPPORTED_COMPONENTS_LIST,
     TaskDecompositionItem,
     RequirementsBreakdown,
+    AcceptanceCriterion,
+    EdgeCaseScenario,
+    TestScenario,
     ClarificationQuestion,
     ExecutionPlanResponse,
 )
@@ -44,7 +47,7 @@ class RequirementAnalysisState(TypedDict, total=False):
 
     # Analysis state
     project_objective: str
-    requirements: Dict[str, Any]  # inputs, processing, outputs, tools, constraints
+    requirements: Dict[str, Any]  # inputs, processing, outputs, tools, constraints, functional, non_functional
     ai_provider: str  # "google-gemini" | "deterministic_engine" | "mock"
     model_used: Optional[str]
 
@@ -59,6 +62,12 @@ class RequirementAnalysisState(TypedDict, total=False):
     status: str  # "ready" | "needs_clarification"
     clarification_questions: List[Dict[str, Any]]
     validation_notes: List[str]
+
+    # Extended synthesis state
+    acceptance_criteria: List[Dict[str, Any]]
+    edge_cases: List[Dict[str, Any]]
+    test_scenarios: List[Dict[str, Any]]
+    assumptions: List[str]
 
     # Planning state
     architecture_summary: str
@@ -163,10 +172,13 @@ def _heuristic_requirement_analysis(
     is_invoice = any(w in p_lower for w in ["invoice", "receipt", "bill", "vendor", "po", "purchase", "audit"])
     is_qa = any(w in p_lower for w in ["question", "answer", "q&a", "ask", "search doc", "manual"])
     is_summary = any(w in p_lower for w in ["summar", "bullet", "digest", "brief"])
+    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
 
     # Inputs
     inputs = []
-    if is_resume:
+    if is_weather:
+        inputs = ["Temperature reading", "Humidity percentage", "Wind speed measurement"]
+    elif is_resume:
         inputs = ["PDF resume", "Job description"]
     elif is_invoice:
         inputs = ["Invoice PDF / Image", "Purchase Order specifications"]
@@ -189,7 +201,15 @@ def _heuristic_requirement_analysis(
 
     # Processing requirements
     processing = []
-    if is_resume:
+    if is_weather:
+        processing = [
+            "Ingest environmental sensor data",
+            "Validate atmospheric parameter bounds",
+            "Analyze weather conditions with LLM model",
+            "Evaluate weather condition thresholds (sunny, rainy, stormy)",
+            "Synthesize weather prediction report"
+        ]
+    elif is_resume:
         processing = [
             "Extract resume information",
             "Extract candidate skills",
@@ -235,7 +255,9 @@ def _heuristic_requirement_analysis(
 
     # Outputs
     outputs = []
-    if is_resume:
+    if is_weather:
+        outputs = ["Weather prediction report"]
+    elif is_resume:
         outputs = ["Candidate evaluation report"]
     elif is_invoice:
         outputs = ["Verified invoice record and approval status"]
@@ -263,15 +285,59 @@ def _heuristic_requirement_analysis(
 
     # Constraints
     constraints = []
-    if "score" in p_lower or "threshold" in p_lower:
+    if is_weather:
+        constraints = [
+            "Ensure humidity is in range [0, 100]% and wind speed >= 0",
+            "Generate structured markdown prediction report"
+        ]
+    elif "score" in p_lower or "threshold" in p_lower:
         constraints.append("Apply pass/fail threshold evaluation")
     if "approval" in p_lower or "human" in p_lower:
         constraints.append("Require human manager sign-off")
     if not constraints:
         constraints.append("Ensure schema adherence and execution safety")
 
+    # Functional & Non-Functional
+    if is_weather:
+        functional = [
+            "Ingest numerical weather metrics (temperature, humidity, wind speed)",
+            "Validate parameters against physical atmospheric bounds",
+            "Predict weather conditions and risk flags using AI model",
+            "Generate structured weather prediction report deliverable"
+        ]
+        non_functional = [
+            "Prediction response latency under 2.0 seconds",
+            "Input boundary validation prevents anomalous sensor processing",
+            "Adherence to supported workflow component primitives"
+        ]
+    elif is_resume:
+        functional = [
+            "Extract candidate skills and experience from PDF resumes",
+            "Extract requirements and qualifications from job descriptions",
+            "Perform semantic skill comparison and gap analysis",
+            "Generate structured candidate evaluation report with scoring"
+        ]
+        non_functional = [
+            "Document parsing handles PDFs up to 20MB",
+            "Execution order guarantees upstream data before LLM reasoning",
+            "Strict adherence to canonical component primitives"
+        ]
+    else:
+        functional = [
+            f"Process user inputs for '{description.strip()[:60]}'",
+            "Apply AI reasoning model to transform and evaluate data",
+            "Format final response deliverable"
+        ]
+        non_functional = [
+            "Workflow execution follows topological dependency order",
+            "Fault-tolerant error handling on malformed inputs",
+            "Strict adherence to 7 canonical components"
+        ]
+
     # Objective
-    if is_resume:
+    if is_weather:
+        objective = "Predict weather conditions using temperature, humidity, and wind speed"
+    elif is_resume:
         objective = "Evaluate candidates using resumes and job descriptions"
     elif is_invoice:
         objective = "Extract, validate, and process invoice data against compliance rules"
@@ -290,7 +356,369 @@ def _heuristic_requirement_analysis(
         "outputs": outputs,
         "tools": tools,
         "constraints": constraints,
+        "functional": functional,
+        "non_functional": non_functional,
     }
+
+
+def _heuristic_acceptance_criteria(
+    objective: str,
+    requirements: Dict[str, Any],
+    description: str,
+) -> List[Dict[str, Any]]:
+    p_lower = description.lower()
+    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
+    is_invoice = any(w in p_lower for w in ["invoice", "receipt", "bill", "vendor", "po", "purchase", "audit"])
+
+    if is_weather:
+        return [
+            {
+                "id": "AC1",
+                "requirement_id": "FR1",
+                "criteria": "System must ingest temperature, humidity, and wind speed inputs.",
+                "description": "Accepts numerical environmental readings via payload or trigger.",
+                "pass_condition": "Numerical values for temperature, humidity, and wind speed are parsed and present.",
+            },
+            {
+                "id": "AC2",
+                "requirement_id": "FR2",
+                "criteria": "System must validate physical bounds for atmospheric parameters.",
+                "description": "Enforces humidity in [0, 100]% and wind speed >= 0.",
+                "pass_condition": "Out-of-range sensor parameters raise structured validation error.",
+            },
+            {
+                "id": "AC3",
+                "requirement_id": "FR3",
+                "criteria": "AI reasoning must predict weather conditions and classify precipitation/storm risk.",
+                "description": "Uses LLM reasoning to evaluate atmospheric parameters into conditions (e.g., sunny, rainy).",
+                "pass_condition": "Prediction output contains condition classification and confidence score.",
+            },
+            {
+                "id": "AC4",
+                "requirement_id": "FR4",
+                "criteria": "System must produce a structured weather prediction report deliverable.",
+                "description": "Delivers complete forecast markdown report containing summary and advisories.",
+                "pass_condition": "Output deliverable contains formatted weather prediction report.",
+            },
+        ]
+    elif is_resume:
+        return [
+            {
+                "id": "AC1",
+                "requirement_id": "FR1",
+                "criteria": "System must extract text and skills from uploaded PDF resumes.",
+                "description": "Parses document content and structures candidate capabilities.",
+                "pass_condition": "Extracted skills array is non-empty and accurately reflects resume content.",
+            },
+            {
+                "id": "AC2",
+                "requirement_id": "FR2",
+                "criteria": "System must parse target job description requirements.",
+                "description": "Identifies mandatory qualifications, experience levels, and skills.",
+                "pass_condition": "Job requirements checklist generated for comparison.",
+            },
+            {
+                "id": "AC3",
+                "requirement_id": "FR3",
+                "criteria": "AI model must compare candidate skills against job description and compute match score.",
+                "description": "Computes semantic alignment, strengths, and missing qualification gaps.",
+                "pass_condition": "Fit score (0-10 or 0-100%) and skill match breakdown are computed.",
+            },
+            {
+                "id": "AC4",
+                "requirement_id": "FR4",
+                "criteria": "System must generate a formatted candidate evaluation report.",
+                "description": "Outputs finalized candidate evaluation report with recommendation.",
+                "pass_condition": "Structured candidate evaluation report generated.",
+            },
+        ]
+    elif is_invoice:
+        return [
+            {
+                "id": "AC1",
+                "requirement_id": "FR1",
+                "criteria": "System must parse invoice document text and line item tables.",
+                "description": "Extracts totals, taxes, vendor info, and line items.",
+                "pass_condition": "Invoice line items and total amounts are structured.",
+            },
+            {
+                "id": "AC2",
+                "requirement_id": "FR2",
+                "criteria": "System must audit totals against purchase order rules.",
+                "description": "Verifies math accuracy and threshold compliance.",
+                "pass_condition": "Audit passes or flags discrepancy when totals mismatch.",
+            },
+            {
+                "id": "AC3",
+                "requirement_id": "FR3",
+                "criteria": "System must produce an invoice audit report.",
+                "description": "Outputs audit summary and approval status.",
+                "pass_condition": "Final invoice verification deliverable generated.",
+            },
+        ]
+    else:
+        return [
+            {
+                "id": "AC1",
+                "requirement_id": "FR1",
+                "criteria": f"System must successfully process inputs for '{objective}'.",
+                "description": "Validates and parses required input data.",
+                "pass_condition": "Input validation passes without unhandled exceptions.",
+            },
+            {
+                "id": "AC2",
+                "requirement_id": "FR2",
+                "criteria": "AI reasoning module must execute workflow logic adhering to constraints.",
+                "description": "Applies cognitive reasoning and task execution.",
+                "pass_condition": "LLM response is successfully generated and matches schema.",
+            },
+            {
+                "id": "AC3",
+                "requirement_id": "FR3",
+                "criteria": "System must generate the designated final output report or deliverable.",
+                "description": "Delivers formatted results to the user or downstream sink.",
+                "pass_condition": "Final output is produced and non-empty.",
+            },
+        ]
+
+
+def _heuristic_edge_cases(
+    objective: str,
+    requirements: Dict[str, Any],
+    description: str,
+) -> List[Dict[str, Any]]:
+    p_lower = description.lower()
+    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
+
+    if is_weather:
+        return [
+            {
+                "scenario_id": "EC1",
+                "description": "Empty or missing weather parameters in input payload",
+                "input_condition": "Null, blank, or missing temperature/humidity/wind speed fields",
+                "expected_behavior": "Input node catches missing field and raises a clear 400 validation error",
+                "expected_result": "Validation error specifying missing weather parameters",
+                "severity": "High",
+            },
+            {
+                "scenario_id": "EC2",
+                "description": "Physical parameter boundary violation",
+                "input_condition": "Humidity < 0% or > 100%, or wind speed < 0 km/h",
+                "expected_behavior": "Validation rule flags out-of-bounds sensor reading before invoking LLM",
+                "expected_result": "Descriptive range violation message returned safely",
+                "severity": "High",
+            },
+            {
+                "scenario_id": "EC3",
+                "description": "Severe atmospheric condition or extreme storm metrics",
+                "input_condition": "Wind speed > 100 km/h or extreme typhoon/blizzard values",
+                "expected_behavior": "Condition node routes to emergency weather advisory branch",
+                "expected_result": "Severe weather alert banner prominently included in output report",
+                "severity": "Medium",
+            },
+            {
+                "scenario_id": "EC4",
+                "description": "LLM API timeout or rate limit exceeded",
+                "input_condition": "Upstream AI provider unavailable or response timeout > 10s",
+                "expected_behavior": "Fallback to deterministic weather estimation heuristics",
+                "expected_result": "Report generated with fallback estimation notice",
+                "severity": "Medium",
+            },
+        ]
+    elif is_resume:
+        return [
+            {
+                "scenario_id": "EC1",
+                "description": "Empty or corrupt resume file uploaded",
+                "input_condition": "0-byte file, unreadable PDF, or password-protected document",
+                "expected_behavior": "Document Reader catches read error and returns clean user notice",
+                "expected_result": "Validation error: 'Unable to parse document. Please upload an unprotected PDF.'",
+                "severity": "High",
+            },
+            {
+                "scenario_id": "EC2",
+                "description": "Missing job description context",
+                "input_condition": "Candidate resume provided without job description or role requirements",
+                "expected_behavior": "System flags missing benchmark and requests job description",
+                "expected_result": "Clarification required or default generic skills profile generated",
+                "severity": "Medium",
+            },
+            {
+                "scenario_id": "EC3",
+                "description": "Low qualification match below passing threshold",
+                "input_condition": "Candidate skills have 0% overlap with mandatory criteria",
+                "expected_behavior": "Condition node routes to rejection notice rather than human interview review",
+                "expected_result": "Evaluation report highlights significant skill gap with 'Not Recommended' status",
+                "severity": "Low",
+            },
+            {
+                "scenario_id": "EC4",
+                "description": "LLM API timeout or rate limit exceeded",
+                "input_condition": "Upstream Gemini model rate limit or connection timeout",
+                "expected_behavior": "Retry with exponential backoff; fallback to deterministic keyword matcher",
+                "expected_result": "Report synthesized using deterministic fallback engine",
+                "severity": "Medium",
+            },
+        ]
+    else:
+        return [
+            {
+                "scenario_id": "EC1",
+                "description": "Missing or null input parameters",
+                "input_condition": "Empty request body or required keys missing",
+                "expected_behavior": "Input component validates schema and returns informative error",
+                "expected_result": "Descriptive 422/400 validation error response",
+                "severity": "High",
+            },
+            {
+                "scenario_id": "EC2",
+                "description": "Malformed or out-of-range input values",
+                "input_condition": "Unexpected data types, non-numeric values, or corrupt attachments",
+                "expected_behavior": "Input parser safely halts execution before downstream components",
+                "expected_result": "Schema format violation error logged and returned",
+                "severity": "High",
+            },
+            {
+                "scenario_id": "EC3",
+                "description": "LLM service degradation or network timeout",
+                "input_condition": "AI provider service outage, rate limiting, or socket timeout",
+                "expected_behavior": "Execute retry policy with backoff; fall back to deterministic pipeline",
+                "expected_result": "Workflow completes with fallback indicator or clear degradation notice",
+                "severity": "Medium",
+            },
+        ]
+
+
+def _heuristic_test_scenarios(
+    objective: str,
+    requirements: Dict[str, Any],
+    tasks: List[Dict[str, Any]],
+    description: str,
+) -> List[Dict[str, Any]]:
+    p_lower = description.lower()
+    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
+
+    if is_weather:
+        return [
+            {
+                "test_id": "TS1",
+                "requirement_id": "AC1",
+                "test_description": "Verify nominal weather prediction pipeline with valid inputs",
+                "test_input": {"temperature": 22.5, "humidity": 60, "wind_speed": 15.0},
+                "expected_output": "Weather prediction report containing condition classification and summary",
+                "expected_status": "SUCCESS",
+                "pass_fail_condition": "Status is SUCCESS and output report is non-empty with condition predicted",
+                "scenario_type": "positive",
+            },
+            {
+                "test_id": "TS2",
+                "requirement_id": "AC2",
+                "test_description": "Verify rejection of empty input payload",
+                "test_input": {},
+                "expected_output": "Validation error indicating missing required weather fields",
+                "expected_status": "FAILURE",
+                "pass_fail_condition": "Execution halts at Input node with descriptive validation error",
+                "scenario_type": "negative",
+            },
+            {
+                "test_id": "TS3",
+                "requirement_id": "AC2",
+                "test_description": "Verify boundary validation for out-of-bounds humidity and wind speed",
+                "test_input": {"temperature": 25.0, "humidity": 150, "wind_speed": -10.0},
+                "expected_output": "Boundary range validation error",
+                "expected_status": "FAILURE",
+                "pass_fail_condition": "System catches out-of-range sensor readings without unhandled exceptions",
+                "scenario_type": "negative",
+            },
+            {
+                "test_id": "TS4",
+                "requirement_id": "AC3",
+                "test_description": "Verify severe storm alert triggering when wind speed exceeds threshold",
+                "test_input": {"temperature": 18.0, "humidity": 95, "wind_speed": 75.0},
+                "expected_output": "Weather prediction report with high-wind severe weather warning advisory",
+                "expected_status": "SUCCESS",
+                "pass_fail_condition": "Condition node routes to severe alert and report includes advisory banner",
+                "scenario_type": "edge_case",
+            },
+        ]
+    elif is_resume:
+        return [
+            {
+                "test_id": "TS1",
+                "requirement_id": "AC1",
+                "test_description": "Verify candidate evaluation with valid resume and job description",
+                "test_input": {
+                    "resume_url": "https://agentforge.ai/samples/john_doe_resume.pdf",
+                    "job_description": "Looking for Senior Python Developer with FastAPI and AI experience.",
+                },
+                "expected_output": "Candidate evaluation report with match score and skill breakdown",
+                "expected_status": "SUCCESS",
+                "pass_fail_condition": "Evaluation report generated with positive match score",
+                "scenario_type": "positive",
+            },
+            {
+                "test_id": "TS2",
+                "requirement_id": "AC2",
+                "test_description": "Verify failure when no resume document is provided",
+                "test_input": {"job_description": "Senior Python Developer"},
+                "expected_output": "Validation error for missing resume document",
+                "expected_status": "FAILURE",
+                "pass_fail_condition": "Input validation halts execution with missing document error",
+                "scenario_type": "negative",
+            },
+            {
+                "test_id": "TS3",
+                "requirement_id": "AC3",
+                "test_description": "Verify low qualification score routing when skills completely mismatch",
+                "test_input": {
+                    "resume_url": "https://agentforge.ai/samples/chef_resume.pdf",
+                    "job_description": "Quantum Computing Physicist with Qiskit expertise.",
+                },
+                "expected_output": "Evaluation report with low suitability score and non-recommended status",
+                "expected_status": "SUCCESS",
+                "pass_fail_condition": "Fit score < 3.0 and report explicitly notes qualification mismatch",
+                "scenario_type": "edge_case",
+            },
+        ]
+    else:
+        return [
+            {
+                "test_id": "TS1",
+                "requirement_id": "AC1",
+                "test_description": "Verify successful end-to-end workflow execution with valid inputs",
+                "test_input": {"query": description},
+                "expected_output": "Workflow output deliverable successfully produced",
+                "expected_status": "SUCCESS",
+                "pass_fail_condition": "All tasks in execution plan complete and deliverable is produced",
+                "scenario_type": "positive",
+            },
+            {
+                "test_id": "TS2",
+                "requirement_id": "AC1",
+                "test_description": "Verify rejection of empty or missing mandatory inputs",
+                "test_input": {},
+                "expected_output": "Validation error response",
+                "expected_status": "FAILURE",
+                "pass_fail_condition": "System returns input validation error rather than crashing",
+                "scenario_type": "negative",
+            },
+        ]
+
+
+def _heuristic_assumptions(
+    objective: str,
+    requirements: Dict[str, Any],
+    description: str,
+) -> List[str]:
+    return [
+        "User input parameters conform to specified JSON or file schemas.",
+        "Google Gemini API or local deterministic engine is accessible during execution.",
+        "Member 3 runtime strictly implements the 7 canonical workflow components (Input, LLM, Document Reader, Tool, Condition, Human Approval, Output).",
+        "Automated verification will be conducted by Member 5 test harness using generated test scenarios.",
+    ]
 
 
 def _heuristic_task_decomposition(
@@ -301,6 +729,67 @@ def _heuristic_task_decomposition(
     """Generates ordered executable tasks with dependencies and components."""
     p_lower = description.lower()
     tasks: List[Dict[str, Any]] = []
+
+    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    if is_weather:
+        return [
+            {
+                "task_id": "T1",
+                "task_name": "Ingest Weather Data",
+                "description": "Ingest environmental metrics: temperature, humidity, and wind speed readings.",
+                "task_description": "Ingest environmental metrics: temperature, humidity, and wind speed readings.",
+                "component": "Input",
+                "component_type": "Input",
+                "required_component": "Input",
+                "input": "User payload: temperature, humidity, wind speed",
+                "expected_output": "Validated atmospheric metric payload",
+                "dependencies": [],
+                "execution_order": 1,
+                "component_config_hints": {"parameters": ["temperature", "humidity", "wind_speed"], "format": "json"}
+            },
+            {
+                "task_id": "T2",
+                "task_name": "Predict Weather Conditions",
+                "description": "Analyze environmental metrics using Gemini AI reasoning to predict conditions and precipitation risk.",
+                "task_description": "Analyze environmental metrics using Gemini AI reasoning to predict conditions and precipitation risk.",
+                "component": "LLM",
+                "component_type": "LLM",
+                "required_component": "LLM",
+                "input": "Validated metrics from T1",
+                "expected_output": "Predicted weather conditions, forecast summary, and risk classifications",
+                "dependencies": ["T1"],
+                "execution_order": 2,
+                "component_config_hints": {"model": "gemini-1.5-pro", "temperature": 0.2}
+            },
+            {
+                "task_id": "T3",
+                "task_name": "Check Severe Weather Alert",
+                "description": "Evaluate threshold rules (high wind speed or severe conditions) to determine hazard warnings.",
+                "task_description": "Evaluate threshold rules (high wind speed or severe conditions) to determine hazard warnings.",
+                "component": "Condition",
+                "component_type": "Condition",
+                "required_component": "Condition",
+                "input": "Weather condition metrics from T2",
+                "expected_output": "Severe weather alert routing flag",
+                "dependencies": ["T2"],
+                "execution_order": 3,
+                "component_config_hints": {"rule": "wind_speed > 50 or condition == 'severe'"}
+            },
+            {
+                "task_id": "T4",
+                "task_name": "Generate Weather Prediction Report",
+                "description": "Synthesize and format final weather prediction report with forecast and advisories.",
+                "task_description": "Synthesize and format final weather prediction report with forecast and advisories.",
+                "component": "Output",
+                "component_type": "Output",
+                "required_component": "Output",
+                "input": "Forecast analysis and alert details from T3",
+                "expected_output": "Formatted comprehensive weather prediction report",
+                "dependencies": ["T3"],
+                "execution_order": 4,
+                "component_config_hints": {"format": "markdown_report"}
+            }
+        ]
 
     is_resume = "resume" in p_lower or "candidate" in p_lower or "cv" in p_lower
     is_invoice = "invoice" in p_lower or "receipt" in p_lower or "bill" in p_lower
@@ -502,7 +991,9 @@ Extract the following in structured JSON:
   "processing": ["List of sequential processing requirements"],
   "outputs": ["List of expected final outputs"],
   "tools": ["List of required external tools if any, e.g. Email, Slack, DB"],
-  "constraints": ["List of execution constraints e.g. threshold rules, human sign-off"]
+  "constraints": ["List of execution constraints e.g. threshold rules, human sign-off"],
+  "functional": ["List of functional capabilities and operations"],
+  "non_functional": ["List of non-functional requirements e.g. latency, safety, resilience"]
 }}
 """
     system_instruction = (
@@ -525,6 +1016,8 @@ Extract the following in structured JSON:
             "outputs": gemini_data.get("outputs", []),
             "tools": gemini_data.get("tools", []),
             "constraints": gemini_data.get("constraints", []),
+            "functional": gemini_data.get("functional", gemini_data.get("processing", [])),
+            "non_functional": gemini_data.get("non_functional", ["Workflow execution follows topological dependency order"]),
         }
         ai_provider = "google-gemini"
         model_used = getattr(settings, "GEMINI_DEFAULT_MODEL", "gemini-1.5-pro")
@@ -538,6 +1031,8 @@ Extract the following in structured JSON:
             "outputs": fallback["outputs"],
             "tools": fallback["tools"],
             "constraints": fallback["constraints"],
+            "functional": fallback.get("functional", []),
+            "non_functional": fallback.get("non_functional", []),
         }
         ai_provider = "deterministic_engine"
         model_used = None
@@ -750,14 +1245,16 @@ def route_after_validation(state: RequirementAnalysisState) -> str:
 def planning_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
     """
     Node 6: Planning Node.
-    Synthesizes requirements, ordered tasks, and component hints into the final
-    structured execution plan formatted for Member 3.
+    Synthesizes requirements, ordered tasks, component hints, acceptance criteria,
+    edge cases, and test scenarios into the structured execution plan.
     """
     logger.info("[LangGraph:Node 6] Planning Node generating structured execution plan...")
 
     tasks = state.get("tasks", [])
     objective = state.get("project_objective", "Custom AI Agent Workflow")
     selected_components = state.get("selected_components", [])
+    description = state.get("description", "")
+    requirements = state.get("requirements", {})
 
     # Re-sequence execution order cleanly 1..N
     ordered_tasks = []
@@ -771,9 +1268,33 @@ def planning_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
         f"utilizing components: {', '.join(selected_components)}."
     )
 
+    # Synthesize Acceptance Criteria if not already provided
+    acceptance_criteria = state.get("acceptance_criteria")
+    if not acceptance_criteria:
+        acceptance_criteria = _heuristic_acceptance_criteria(objective, requirements, description)
+
+    # Synthesize Edge Cases if not already provided
+    edge_cases = state.get("edge_cases")
+    if not edge_cases:
+        edge_cases = _heuristic_edge_cases(objective, requirements, description)
+
+    # Synthesize Test Scenarios if not already provided
+    test_scenarios = state.get("test_scenarios")
+    if not test_scenarios:
+        test_scenarios = _heuristic_test_scenarios(objective, requirements, ordered_tasks, description)
+
+    # Synthesize Assumptions
+    assumptions = state.get("assumptions")
+    if not assumptions:
+        assumptions = _heuristic_assumptions(objective, requirements, description)
+
     return {
         "tasks": ordered_tasks,
         "architecture_summary": architecture_summary,
+        "acceptance_criteria": acceptance_criteria,
+        "edge_cases": edge_cases,
+        "test_scenarios": test_scenarios,
+        "assumptions": assumptions,
         "status": "ready",
     }
 
@@ -781,7 +1302,7 @@ def planning_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
 def output_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
     """
     Node 7: Output Node.
-    Assembles the final structured ExecutionPlanResponse ready for Member 3.
+    Assembles the final structured ExecutionPlanResponse ready for Member 3 and Member 5.
     """
     logger.info("[LangGraph:Node 7] Output Node packaging final response.")
 
@@ -793,8 +1314,11 @@ def output_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
         inputs=req_dict.get("inputs", []),
         processing=req_dict.get("processing", []),
         outputs=req_dict.get("outputs", []),
+        expected_outputs=req_dict.get("outputs", []),
         tools=req_dict.get("tools", []),
         constraints=req_dict.get("constraints", []),
+        functional=req_dict.get("functional", []),
+        non_functional=req_dict.get("non_functional", []),
     )
 
     tasks_out = []
@@ -808,6 +1332,32 @@ def output_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
         ClarificationQuestion(**q) for q in state.get("clarification_questions", [])
     ]
 
+    # Acceptance criteria
+    acceptance_criteria_out = []
+    for ac in state.get("acceptance_criteria", []):
+        try:
+            acceptance_criteria_out.append(AcceptanceCriterion(**ac))
+        except Exception as e:
+            logger.warning(f"Failed to validate acceptance criterion {ac}: {e}")
+
+    # Edge cases
+    edge_cases_out = []
+    for ec in state.get("edge_cases", []):
+        try:
+            edge_cases_out.append(EdgeCaseScenario(**ec))
+        except Exception as e:
+            logger.warning(f"Failed to validate edge case {ec}: {e}")
+
+    # Test scenarios
+    test_scenarios_out = []
+    for ts in state.get("test_scenarios", []):
+        try:
+            test_scenarios_out.append(TestScenario(**ts))
+        except Exception as e:
+            logger.warning(f"Failed to validate test scenario {ts}: {e}")
+
+    assumptions_out = state.get("assumptions", [])
+
     selected_comps = state.get("selected_components", [])
     valid_comps: List[SupportedComponent] = [
         c for c in selected_comps if c in SUPPORTED_COMPONENTS_LIST
@@ -818,13 +1368,19 @@ def output_node(state: RequirementAnalysisState) -> RequirementAnalysisState:
         status=status,
         requirements=requirements,
         tasks=tasks_out,
+        execution_plan=tasks_out,
         required_components=valid_comps,
+        components=valid_comps,
         clarification_questions=clarification_questions,
+        acceptance_criteria=acceptance_criteria_out,
+        edge_cases=edge_cases_out,
+        test_scenarios=test_scenarios_out,
+        assumptions=assumptions_out,
         confidence_score=state.get("confidence_score", 0.95),
         architecture_summary=state.get("architecture_summary"),
         ai_provider=state.get("ai_provider", "deterministic_engine"),
         model_used=state.get("model_used"),
-        contract_version="1.0.0",
+        contract_version="1.1.0",
     )
 
     return {

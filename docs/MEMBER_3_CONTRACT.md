@@ -25,39 +25,260 @@ This document defines the interface and data contract between **Member 2** (AI R
 
 ## 2. JSON Schema & Data Contract
 
-Contract version: `1.0.0`
+Contract version: `1.1.0`
 Schema Definition: `shared/execution_plan.schema.json`
 Pydantic Model: `backend/app/schemas/requirement_analysis.py` (`ExecutionPlanResponse`)
 
-### Full Example Payload Passed to Member 3:
+### Full Example Payload Passed to Member 3 & Member 5:
 
 ```json
 {
-  "project_objective": "Evaluate candidates using resumes and job descriptions",
+  "project_objective": "Predict weather conditions using temperature, humidity, and wind speed",
   "status": "ready",
   "requirements": {
+    "functional": [
+      "Ingest numerical weather metrics (temperature, humidity, wind speed)",
+      "Validate parameters against physical atmospheric bounds",
+      "Predict weather conditions and risk flags using AI model",
+      "Generate structured weather prediction report deliverable"
+    ],
+    "non_functional": [
+      "Prediction response latency under 2.0 seconds",
+      "Input boundary validation prevents anomalous sensor processing",
+      "Adherence to supported workflow component primitives"
+    ],
     "inputs": [
-      "PDF resume",
-      "Job description"
+      "Temperature reading",
+      "Humidity percentage",
+      "Wind speed measurement"
     ],
     "processing": [
-      "Extract resume information",
-      "Extract candidate skills",
-      "Analyze job description",
-      "Compare candidate skills",
-      "Evaluate candidate suitability"
+      "Ingest environmental sensor data",
+      "Validate atmospheric parameter bounds",
+      "Analyze weather conditions with LLM model",
+      "Evaluate weather condition thresholds (sunny, rainy, stormy)",
+      "Synthesize weather prediction report"
     ],
     "outputs": [
-      "Candidate evaluation report"
+      "Weather prediction report"
+    ],
+    "expected_outputs": [
+      "Weather prediction report"
     ],
     "tools": [],
     "constraints": [
-      "Ensure schema adherence and execution safety"
+      "Ensure humidity is in range [0, 100]% and wind speed >= 0",
+      "Generate structured markdown prediction report"
     ]
   },
   "tasks": [
     {
       "task_id": "T1",
+      "task_name": "Ingest Weather Data",
+      "description": "Ingest environmental metrics: temperature, humidity, and wind speed readings.",
+      "component": "Input",
+      "component_type": "Input",
+      "required_component": "Input",
+      "input": "User payload: temperature, humidity, wind speed",
+      "expected_output": "Validated atmospheric metric payload",
+      "dependencies": [],
+      "execution_order": 1,
+      "component_config_hints": {
+        "parameters": ["temperature", "humidity", "wind_speed"],
+        "format": "json"
+      }
+    },
+    {
+      "task_id": "T2",
+      "task_name": "Predict Weather Conditions",
+      "description": "Analyze environmental metrics using Gemini AI reasoning to predict conditions and precipitation risk.",
+      "component": "LLM",
+      "component_type": "LLM",
+      "required_component": "LLM",
+      "input": "Validated metrics from T1",
+      "expected_output": "Predicted weather conditions, forecast summary, and risk classifications",
+      "dependencies": ["T1"],
+      "execution_order": 2,
+      "component_config_hints": {
+        "model": "gemini-1.5-pro",
+        "temperature": 0.2
+      }
+    },
+    {
+      "task_id": "T3",
+      "task_name": "Check Severe Weather Alert",
+      "description": "Evaluate threshold rules (high wind speed or severe conditions) to determine hazard warnings.",
+      "component": "Condition",
+      "component_type": "Condition",
+      "required_component": "Condition",
+      "input": "Weather condition metrics from T2",
+      "expected_output": "Severe weather alert routing flag",
+      "dependencies": ["T2"],
+      "execution_order": 3,
+      "component_config_hints": {
+        "rule": "wind_speed > 50 or condition == 'severe'"
+      }
+    },
+    {
+      "task_id": "T4",
+      "task_name": "Generate Weather Prediction Report",
+      "description": "Synthesize and format final weather prediction report with forecast and advisories.",
+      "component": "Output",
+      "component_type": "Output",
+      "required_component": "Output",
+      "input": "Forecast analysis and alert details from T3",
+      "expected_output": "Formatted comprehensive weather prediction report",
+      "dependencies": ["T3"],
+      "execution_order": 4,
+      "component_config_hints": {
+        "format": "markdown_report"
+      }
+    }
+  ],
+  "required_components": [
+    "Input",
+    "LLM",
+    "Condition",
+    "Output"
+  ],
+  "components": [
+    "Input",
+    "LLM",
+    "Condition",
+    "Output"
+  ],
+  "clarification_questions": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "requirement_id": "FR1",
+      "criteria": "System must ingest temperature, humidity, and wind speed inputs.",
+      "description": "Accepts numerical environmental readings via payload or trigger.",
+      "pass_condition": "Numerical values for temperature, humidity, and wind speed are parsed and present."
+    },
+    {
+      "id": "AC2",
+      "requirement_id": "FR2",
+      "criteria": "System must validate physical bounds for atmospheric parameters.",
+      "description": "Enforces humidity in [0, 100]% and wind speed >= 0.",
+      "pass_condition": "Out-of-range sensor parameters raise structured validation error."
+    },
+    {
+      "id": "AC3",
+      "requirement_id": "FR3",
+      "criteria": "AI reasoning must predict weather conditions and classify precipitation/storm risk.",
+      "description": "Uses LLM reasoning to evaluate atmospheric parameters into conditions (e.g., sunny, rainy).",
+      "pass_condition": "Prediction output contains condition classification and confidence score."
+    },
+    {
+      "id": "AC4",
+      "requirement_id": "FR4",
+      "criteria": "System must produce a structured weather prediction report deliverable.",
+      "description": "Delivers complete forecast markdown report containing summary and advisories.",
+      "pass_condition": "Output deliverable contains formatted weather prediction report."
+    }
+  ],
+  "edge_cases": [
+    {
+      "scenario_id": "EC1",
+      "description": "Empty or missing weather parameters in input payload",
+      "input_condition": "Null, blank, or missing temperature/humidity/wind speed fields",
+      "expected_behavior": "Input node catches missing field and raises a clear 400 validation error",
+      "expected_result": "Validation error specifying missing weather parameters",
+      "severity": "High"
+    },
+    {
+      "scenario_id": "EC2",
+      "description": "Physical parameter boundary violation",
+      "input_condition": "Humidity < 0% or > 100%, or wind speed < 0 km/h",
+      "expected_behavior": "Validation rule flags out-of-bounds sensor reading before invoking LLM",
+      "expected_result": "Descriptive range violation message returned safely",
+      "severity": "High"
+    },
+    {
+      "scenario_id": "EC3",
+      "description": "Severe atmospheric condition or extreme storm metrics",
+      "input_condition": "Wind speed > 100 km/h or extreme typhoon/blizzard values",
+      "expected_behavior": "Condition node routes to emergency weather advisory branch",
+      "expected_result": "Severe weather alert banner prominently included in output report",
+      "severity": "Medium"
+    },
+    {
+      "scenario_id": "EC4",
+      "description": "LLM API timeout or rate limit exceeded",
+      "input_condition": "Upstream AI provider unavailable or response timeout > 10s",
+      "expected_behavior": "Fallback to deterministic weather estimation heuristics",
+      "expected_result": "Report generated with fallback estimation notice",
+      "severity": "Medium"
+    }
+  ],
+  "test_scenarios": [
+    {
+      "test_id": "TS1",
+      "requirement_id": "AC1",
+      "test_description": "Verify nominal weather prediction pipeline with valid inputs",
+      "test_input": {
+        "temperature": 22.5,
+        "humidity": 60,
+        "wind_speed": 15.0
+      },
+      "expected_output": "Weather prediction report containing condition classification and summary",
+      "expected_status": "SUCCESS",
+      "pass_fail_condition": "Status is SUCCESS and output report is non-empty with condition predicted",
+      "scenario_type": "positive"
+    },
+    {
+      "test_id": "TS2",
+      "requirement_id": "AC2",
+      "test_description": "Verify rejection of empty input payload",
+      "test_input": {},
+      "expected_output": "Validation error indicating missing required weather fields",
+      "expected_status": "FAILURE",
+      "pass_fail_condition": "Execution halts at Input node with descriptive validation error",
+      "scenario_type": "negative"
+    },
+    {
+      "test_id": "TS3",
+      "requirement_id": "AC2",
+      "test_description": "Verify boundary validation for out-of-bounds humidity and wind speed",
+      "test_input": {
+        "temperature": 25.0,
+        "humidity": 150,
+        "wind_speed": -10.0
+      },
+      "expected_output": "Boundary range validation error",
+      "expected_status": "FAILURE",
+      "pass_fail_condition": "System catches out-of-range sensor readings without unhandled exceptions",
+      "scenario_type": "negative"
+    },
+    {
+      "test_id": "TS4",
+      "requirement_id": "AC3",
+      "test_description": "Verify severe storm alert triggering when wind speed exceeds threshold",
+      "test_input": {
+        "temperature": 18.0,
+        "humidity": 95,
+        "wind_speed": 75.0
+      },
+      "expected_output": "Weather prediction report with high-wind severe weather warning advisory",
+      "expected_status": "SUCCESS",
+      "pass_fail_condition": "Condition node routes to severe alert and report includes advisory banner",
+      "scenario_type": "edge_case"
+    }
+  ],
+  "assumptions": [
+    "User input parameters conform to specified JSON or file schemas.",
+    "Google Gemini API or local deterministic engine is accessible during execution.",
+    "Member 3 runtime strictly implements the 7 canonical workflow components (Input, LLM, Document Reader, Tool, Condition, Human Approval, Output).",
+    "Automated verification will be conducted by Member 5 test harness using generated test scenarios."
+  ],
+  "confidence_score": 0.95,
+  "architecture_summary": "Execution plan for 'Predict weather conditions using temperature, humidity, and wind speed' with 4 ordered tasks utilizing components: Input, LLM, Condition, Output.",
+  "ai_provider": "deterministic_engine",
+  "model_used": null,
+  "contract_version": "1.1.0"
+}
+```
       "task_name": "Upload Resume",
       "description": "Ingest user-provided source files or parameters.",
       "component": "Input",

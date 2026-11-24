@@ -41,6 +41,11 @@ export const CreateAgentPage: React.FC = () => {
 
   const examplePrompts = [
     {
+      title: 'Weather Prediction Agent',
+      category: 'Climate & Forecasting',
+      text: 'Create an AI agent that predicts weather conditions using temperature, humidity, and wind speed and provides a weather prediction report.',
+    },
+    {
       title: 'Resume Evaluation Assistant',
       category: 'Recruiting & HR',
       text: 'Read resumes and evaluate candidate skills against job requirements.',
@@ -461,6 +466,132 @@ export const CreateAgentPage: React.FC = () => {
                 ))}
               </div>
             </div>
+
+            {/* Member 5: Acceptance Criteria */}
+            {analysisResult.acceptance_criteria && analysisResult.acceptance_criteria.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#B15F2C]" />
+                    Acceptance Criteria ({analysisResult.acceptance_criteria.length} Verifiable Rules)
+                  </span>
+                  <span className="text-[11px] text-[#777777]">Used by Member 5 for verification & test harness</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {analysisResult.acceptance_criteria.map((ac) => (
+                    <div key={ac.id} className="p-3 rounded-2xl bg-[#F7F6F4]/80 border border-[#EAE8E5] space-y-1 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded-md bg-[#FAF5F1] text-[#B15F2C] border border-[#CF8047]/30 font-bold text-[10px]">
+                          {ac.id}
+                        </span>
+                        <p className="font-bold text-[#111111] leading-tight">{ac.criteria}</p>
+                      </div>
+                      {ac.description && (
+                        <p className="text-[11px] text-[#777777]">{ac.description}</p>
+                      )}
+                      {ac.pass_condition && (
+                        <div className="text-[10px] text-emerald-800 bg-emerald-50/70 px-2 py-1 rounded-lg border border-emerald-200/50 mt-1">
+                          <strong>Pass Condition:</strong> {ac.pass_condition}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Edge Cases & Failure Analysis */}
+            {analysisResult.edge_cases && analysisResult.edge_cases.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Edge Cases & Failure Resilience ({analysisResult.edge_cases.length} Scenarios)
+                  </span>
+                  <span className="text-[11px] text-[#777777]">Boundary & invalid input resilience</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {analysisResult.edge_cases.map((ec) => (
+                    <div key={ec.scenario_id} className="p-3 rounded-2xl bg-white border border-[#EAE8E5] space-y-1 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-bold text-[10px]">
+                            {ec.scenario_id}
+                          </span>
+                          <p className="font-bold text-[#111111] text-xs leading-tight">{ec.description}</p>
+                        </div>
+                        <span
+                          className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border ${
+                            ec.severity === 'Critical'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : ec.severity === 'High'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
+                        >
+                          {ec.severity}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#777777]">
+                        <strong>Trigger:</strong> {ec.input_condition}
+                      </p>
+                      <p className="text-[11px] text-slate-800 bg-slate-50 p-1.5 rounded-lg border border-slate-200/60">
+                        <strong>Expected Behavior:</strong> {ec.expected_behavior}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Member 5: Automated Test Scenarios */}
+            {analysisResult.test_scenarios && analysisResult.test_scenarios.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-[#111111] uppercase text-[10px] tracking-wider block flex items-center gap-1.5">
+                    <ListOrdered className="w-3.5 h-3.5 text-blue-600" />
+                    Automated Test Scenarios ({analysisResult.test_scenarios.length} Scenarios for Member 5)
+                  </span>
+                  <span className="text-[11px] text-[#777777]">Positive, negative & edge tests</span>
+                </div>
+
+                <div className="space-y-2">
+                  {analysisResult.test_scenarios.map((ts) => (
+                    <div key={ts.test_id} className="p-3 rounded-2xl bg-white border border-[#EAE8E5] space-y-1 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-lg bg-blue-50 text-blue-800 border border-blue-200 flex items-center justify-center font-bold text-[10px]">
+                            {ts.test_id}
+                          </span>
+                          <p className="font-bold text-[#111111] text-xs">{ts.test_description}</p>
+                        </div>
+                        <span
+                          className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                            ts.scenario_type === 'positive'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : ts.scenario_type === 'negative'
+                              ? 'bg-rose-50 text-rose-700 border-rose-200'
+                              : 'bg-purple-50 text-purple-700 border-purple-200'
+                          }`}
+                        >
+                          {ts.scenario_type}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                        <div className="bg-[#F7F6F4] p-1.5 rounded-lg border border-[#EAE8E5]">
+                          <strong className="text-[#777777]">Expected Status:</strong> {ts.expected_status}
+                        </div>
+                        <div className="bg-[#F7F6F4] p-1.5 rounded-lg border border-[#EAE8E5]">
+                          <strong className="text-[#777777]">Pass Condition:</strong> {ts.pass_fail_condition}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Raw JSON Plan for Member 3 Integration */}
             {showJsonPlan && (

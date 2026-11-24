@@ -27,6 +27,16 @@
       "type": "object",
       "required": ["inputs", "processing", "outputs", "tools", "constraints"],
       "properties": {
+        "functional": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Functional capabilities and business logic requirements"
+        },
+        "non_functional": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Non-functional requirements like latency, safety, and scalability"
+        },
         "inputs": {
           "type": "array",
           "items": { "type": "string" },
@@ -41,6 +51,11 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Expected deliverables, reports, or formatted outputs"
+        },
+        "expected_outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Alias for outputs"
         },
         "tools": {
           "type": "array",
@@ -162,6 +177,82 @@
         ]
       },
       "description": "Deduplicated list of canonical components required for this workflow"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "Input",
+          "LLM",
+          "Document Reader",
+          "Tool",
+          "Condition",
+          "Human Approval",
+          "Output"
+        ]
+      },
+      "description": "Alias for required_components"
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "criteria"],
+        "properties": {
+          "id": { "type": "string" },
+          "requirement_id": { "type": ["string", "null"] },
+          "criteria": { "type": "string" },
+          "description": { "type": "string" },
+          "pass_condition": { "type": ["string", "null"] }
+        }
+      },
+      "description": "Measurable, testable acceptance criteria for Member 5 automated testing module"
+    },
+    "edge_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scenario_id", "description", "input_condition", "expected_behavior"],
+        "properties": {
+          "scenario_id": { "type": "string" },
+          "description": { "type": "string" },
+          "input_condition": { "type": "string" },
+          "expected_behavior": { "type": "string" },
+          "expected_result": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["Low", "Medium", "High", "Critical"]
+          }
+        }
+      },
+      "description": "Identified edge cases and invalid-input failure scenarios"
+    },
+    "test_scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["test_id", "test_description", "expected_status", "pass_fail_condition"],
+        "properties": {
+          "test_id": { "type": "string" },
+          "requirement_id": { "type": ["string", "null"] },
+          "test_description": { "type": "string" },
+          "test_input": {},
+          "expected_output": {},
+          "expected_status": { "type": "string" },
+          "pass_fail_condition": { "type": "string" },
+          "scenario_type": {
+            "type": "string",
+            "enum": ["positive", "negative", "edge_case"]
+          }
+        }
+      },
+      "description": "Generated positive, negative, and edge-case test scenarios for Member 5 testing module"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Assumptions made during requirement analysis and architecture synthesis"
     },
     "clarification_questions": {
       "type": "array",

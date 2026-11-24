@@ -159,18 +159,66 @@ flowchart TD
     }
   ],
   "required_components": ["Input", "Document Reader", "LLM", "Output"],
+  "components": ["Input", "Document Reader", "LLM", "Output"],
   "clarification_questions": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC1",
+      "requirement_id": "FR1",
+      "criteria": "System must extract text and skills from uploaded PDF resumes.",
+      "description": "Parses document content and structures candidate capabilities.",
+      "pass_condition": "Extracted skills array is non-empty and accurately reflects resume content."
+    }
+  ],
+  "edge_cases": [
+    {
+      "scenario_id": "EC1",
+      "description": "Empty or corrupt resume file uploaded",
+      "input_condition": "0-byte file, unreadable PDF, or password-protected document",
+      "expected_behavior": "Document Reader catches read error and returns clean user notice",
+      "expected_result": "Validation error: 'Unable to parse document. Please upload an unprotected PDF.'",
+      "severity": "High"
+    }
+  ],
+  "test_scenarios": [
+    {
+      "test_id": "TS1",
+      "requirement_id": "AC1",
+      "test_description": "Verify candidate evaluation with valid resume and job description",
+      "test_input": {
+        "resume_url": "https://agentforge.ai/samples/john_doe_resume.pdf",
+        "job_description": "Looking for Senior Python Developer with FastAPI and AI experience."
+      },
+      "expected_output": "Candidate evaluation report with match score and skill breakdown",
+      "expected_status": "SUCCESS",
+      "pass_fail_condition": "Evaluation report generated with positive match score",
+      "scenario_type": "positive"
+    }
+  ],
+  "assumptions": [
+    "User input parameters conform to specified JSON or file schemas.",
+    "Member 3 runtime strictly implements the 7 canonical workflow components."
+  ],
   "confidence_score": 0.95,
   "architecture_summary": "Execution plan for 'Evaluate candidates using resumes and job descriptions' with 4 ordered tasks utilizing components: Input, Document Reader, LLM, Output.",
   "ai_provider": "google-gemini",
   "model_used": "gemini-1.5-pro",
-  "contract_version": "1.0.0"
+  "contract_version": "1.1.0"
 }
 ```
 
 ---
 
-## 5. Environment Configuration
+## 5. Member 5 Test Harness & Resilience Contract
+
+The module produces structured validation data directly consumed by Member 5 (Automated Testing & Self-Repair):
+1. **Acceptance Criteria**: Formulates explicit, verifiable rules (`id`, `requirement_id`, `criteria`, `pass_condition`).
+2. **Edge Cases & Failure Resilience**: Catalogs boundary violations, missing keys, API timeouts, and severity ratings (`Critical`, `High`, `Medium`, `Low`).
+3. **Automated Test Scenarios**: Generates stratified test cases (`scenario_type`: `positive`, `negative`, `edge_case`) with concrete sample payloads and verifiable pass/fail assertions.
+
+---
+
+## 6. Environment Configuration
 
 In `.env`:
 ```ini
@@ -183,11 +231,11 @@ GEMINI_DEFAULT_MODEL=gemini-1.5-pro
 
 ---
 
-## 6. Testing
+## 7. Testing
 
 Run the automated test suite:
 ```bash
 python -m pytest backend/tests/test_requirement_analysis.py -v
 ```
 
-All 11 Member 2 tests run without requiring a live Gemini API key, using mock patches and the built-in deterministic semantic engine.
+All 15 Member 2 tests run without requiring a live Gemini API key, using mock patches and the built-in deterministic semantic engine. Total backend test coverage consists of 34 passing tests across agents, workflows, executions, and database layers.
