@@ -1,0 +1,4 @@
+# Optional runtime for Member 6 recovery orchestration.
+langgraph==1.2.24
+# Retain compatibility with the minimum optional Google Gen AI SDK.
+tenacity<9.2
