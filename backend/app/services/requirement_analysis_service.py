@@ -82,6 +82,21 @@ class RequirementAnalysisState(TypedDict, total=False):
 # Semantic Heuristic Fallback Engine
 # (Ensures 100% resilient operation when offline, mocked, or without API key)
 # ---------------------------------------------------------------------------
+def _has_keyword(text: str, keywords: List[str]) -> bool:
+    """Checks if any keyword matches as a distinct word or substring if keyword > 3 chars."""
+    t_lower = text.lower()
+    for kw in keywords:
+        kw_l = kw.lower()
+        if len(kw_l) <= 3:
+            # Word boundary check for short abbreviations like 'cv', 'po', 'doc', 'qa'
+            if re.search(r"\b" + re.escape(kw_l) + r"\b", t_lower):
+                return True
+        else:
+            if kw_l in t_lower:
+                return True
+    return False
+
+
 def _detect_missing_and_clarifications(
     prompt: str,
     clarification_answers: Dict[str, str],
@@ -167,12 +182,13 @@ def _heuristic_requirement_analysis(
             "constraints": ["Requirements pending user clarification"],
         }
 
-    # Detect domain
-    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
-    is_invoice = any(w in p_lower for w in ["invoice", "receipt", "bill", "vendor", "po", "purchase", "audit"])
-    is_qa = any(w in p_lower for w in ["question", "answer", "q&a", "ask", "search doc", "manual"])
-    is_summary = any(w in p_lower for w in ["summar", "bullet", "digest", "brief"])
-    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    # Detect domain with word-boundary awareness
+    is_weather = _has_keyword(p_lower, ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = _has_keyword(p_lower, ["resume", "candidate", "applicant", "hire", "recruiting", "cv"])
+    is_invoice = _has_keyword(p_lower, ["invoice", "receipt", "bill", "vendor", "po", "purchase order", "audit"])
+    is_support = _has_keyword(p_lower, ["ticket", "support", "customer service", "email triage", "inquiry"])
+    is_qa = _has_keyword(p_lower, ["question", "answer", "q&a", "manual", "knowledge"])
+    is_summary = _has_keyword(p_lower, ["summar", "bullet", "digest", "brief"])
 
     # Inputs
     inputs = []
@@ -182,6 +198,8 @@ def _heuristic_requirement_analysis(
         inputs = ["PDF resume", "Job description"]
     elif is_invoice:
         inputs = ["Invoice PDF / Image", "Purchase Order specifications"]
+    elif is_support:
+        inputs = ["Customer support message / email payload", "Ticket metadata"]
     elif is_qa:
         inputs = ["PDF knowledge documents", "User question prompt"]
     elif is_summary:
@@ -225,6 +243,13 @@ def _heuristic_requirement_analysis(
             "Perform compliance threshold check",
             "Generate invoice audit report"
         ]
+    elif is_support:
+        processing = [
+            "Ingest customer support message",
+            "Classify intent, urgency, and sentiment with LLM",
+            "Evaluate escalation condition (high priority vs standard resolution)",
+            "Generate automated response or dispatch to support queue"
+        ]
     elif is_qa:
         processing = [
             "Ingest and chunk knowledge document",
@@ -261,6 +286,8 @@ def _heuristic_requirement_analysis(
         outputs = ["Candidate evaluation report"]
     elif is_invoice:
         outputs = ["Verified invoice record and approval status"]
+    elif is_support:
+        outputs = ["Automated response / triage ticket assignment"]
     elif is_qa:
         outputs = ["Answer with document citations"]
     elif is_summary:
@@ -322,6 +349,27 @@ def _heuristic_requirement_analysis(
             "Execution order guarantees upstream data before LLM reasoning",
             "Strict adherence to canonical component primitives"
         ]
+    elif is_support:
+        functional = [
+            "Ingest incoming customer support inquiries and emails",
+            "Classify request urgency, category, and customer sentiment",
+            "Route critical or negative tickets to human team for approval",
+            "Generate and dispatch automated resolution responses"
+        ]
+        non_functional = [
+            "Ticket triage and response latency under 1.5 seconds",
+            "Strict adherence to 7 canonical components"
+        ]
+    elif is_qa:
+        functional = [
+            "Parse knowledge manuals and reference documents",
+            "Extract relevant context passages matching user questions",
+            "Synthesize factual answers with source citations"
+        ]
+        non_functional = [
+            "Response latency under 2.0 seconds",
+            "Strict adherence to canonical components"
+        ]
     else:
         functional = [
             f"Process user inputs for '{description.strip()[:60]}'",
@@ -341,6 +389,8 @@ def _heuristic_requirement_analysis(
         objective = "Evaluate candidates using resumes and job descriptions"
     elif is_invoice:
         objective = "Extract, validate, and process invoice data against compliance rules"
+    elif is_support:
+        objective = "Triage customer support requests and dispatch automated responses"
     elif is_qa:
         objective = "Answer user questions accurately from parsed knowledge documents"
     elif is_summary:
@@ -367,9 +417,10 @@ def _heuristic_acceptance_criteria(
     description: str,
 ) -> List[Dict[str, Any]]:
     p_lower = description.lower()
-    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
-    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
-    is_invoice = any(w in p_lower for w in ["invoice", "receipt", "bill", "vendor", "po", "purchase", "audit"])
+    is_weather = _has_keyword(p_lower, ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = _has_keyword(p_lower, ["resume", "candidate", "applicant", "hire", "recruiting", "cv"])
+    is_invoice = _has_keyword(p_lower, ["invoice", "receipt", "bill", "vendor", "po", "purchase order", "audit"])
+    is_support = _has_keyword(p_lower, ["ticket", "support", "customer service", "email triage", "inquiry"])
 
     if is_weather:
         return [
@@ -489,8 +540,8 @@ def _heuristic_edge_cases(
     description: str,
 ) -> List[Dict[str, Any]]:
     p_lower = description.lower()
-    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
-    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
+    is_weather = _has_keyword(p_lower, ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = _has_keyword(p_lower, ["resume", "candidate", "applicant", "hire", "recruiting", "cv"])
 
     if is_weather:
         return [
@@ -598,8 +649,8 @@ def _heuristic_test_scenarios(
     description: str,
 ) -> List[Dict[str, Any]]:
     p_lower = description.lower()
-    is_weather = any(w in p_lower for w in ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
-    is_resume = any(w in p_lower for w in ["resume", "candidate", "job", "applicant", "hire", "recruiting", "cv"])
+    is_weather = _has_keyword(p_lower, ["weather", "temperature", "humidity", "wind", "forecast", "climate"])
+    is_resume = _has_keyword(p_lower, ["resume", "candidate", "applicant", "hire", "recruiting", "cv"])
 
     if is_weather:
         return [
@@ -791,9 +842,9 @@ def _heuristic_task_decomposition(
             }
         ]
 
-    is_resume = "resume" in p_lower or "candidate" in p_lower or "cv" in p_lower
-    is_invoice = "invoice" in p_lower or "receipt" in p_lower or "bill" in p_lower
-    has_doc = any(w in p_lower for w in ["pdf", "resume", "invoice", "doc", "file", "cv", "receipt"])
+    is_resume = _has_keyword(p_lower, ["resume", "candidate", "applicant", "hire", "cv"])
+    is_invoice = _has_keyword(p_lower, ["invoice", "receipt", "bill", "vendor", "po", "purchase order"])
+    has_doc = _has_keyword(p_lower, ["pdf", "resume", "invoice", "doc", "document", "file", "cv", "receipt", "manual"])
     needs_condition = any(w in p_lower for w in ["condition", "threshold", "score", "if", "check"])
     needs_approval = any(w in p_lower for w in ["approval", "human", "review", "signoff", "manager"])
     needs_tool = any(w in p_lower for w in ["slack", "email", "database", "save", "erp", "sync", "api"])
