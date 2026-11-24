@@ -12,11 +12,9 @@ import { useWorkflow } from '../../context/WorkflowContext';
 import { ElevatedButton } from '../common/ElevatedButton';
 
 export const SettingsPage: React.FC = () => {
-  const { showToast } = useWorkflow();
+  const { showToast, setCurrentPage } = useWorkflow();
 
   const [defaultModel, setDefaultModel] = useState('Gemini 1.5 Pro (Recommended)');
-  const [autoRepairEnabled, setAutoRepairEnabled] = useState(true);
-  const [maxRepairAttempts, setMaxRepairAttempts] = useState(2);
   const [executionTimeout, setExecutionTimeout] = useState(300);
 
   const handleSave = () => {
@@ -111,37 +109,12 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4 text-xs">
-          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F7F6F4] border border-[#EAE8E5] shadow-subtle">
-            <div>
-              <p className="font-bold text-[#111111]">Enable Automatic Self-Repair</p>
-              <p className="text-[11px] text-[#777777]">
-                Allow AgentForge AI to analyze failed components and offer 1-click automatic repairs.
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={autoRepairEnabled}
-              onChange={(e) => setAutoRepairEnabled(e.target.checked)}
-              className="w-4 h-4 accent-[#B15F2C] rounded cursor-pointer"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="font-bold text-[#111111]">Maximum Automatic Repair Attempts</label>
-            <input
-              type="number"
-              min={1}
-              max={2}
-              value={maxRepairAttempts}
-              onChange={(e) => setMaxRepairAttempts(parseInt(e.target.value))}
-              className="w-full text-xs text-[#111111] bg-[#F7F6F4] border border-[#EAE8E5] rounded-xl px-3 py-2.5 focus:outline-none focus:border-[#B15F2C] focus:bg-white transition-all shadow-subtle"
-            />
-            <p className="text-[11px] text-[#777777]">
-              Strictly limited to 2 attempts max to avoid repetitive adjustments.
-            </p>
-          </div>
-        </div>
+        <p className="text-xs text-[#555555]">
+          The backend allows at most two attempts per recovery. Automatic recovery requires trusted evidence, durable attempt storage, and verification.
+        </p>
+        <ElevatedButton size="sm" variant="secondary" onClick={() => setCurrentPage('activity')}>
+          Check repair readiness
+        </ElevatedButton>
       </div>
 
       {/* Security & API Key Notice */}

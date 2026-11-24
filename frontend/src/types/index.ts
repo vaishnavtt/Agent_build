@@ -113,36 +113,6 @@ export interface ExecutionRecord {
   logEvidence?: ExecutionLogEntry[];
 }
 
-export interface AutoRepairState {
-  isActive: boolean;
-  attemptCount: number;
-  stage: 'idle' | 'identifying' | 'preparing' | 'applying' | 'checking' | 'retesting' | 'completed' | 'failed';
-  problemFound: string;
-  whyItHappened: string;
-  logEvidence: ExecutionLogEntry[];
-  suggestedFix: string;
-  appliedCorrections: string[];
-  revalidationStatus?: 'passed' | 'failed';
-  retestStatus?: 'passed' | 'failed';
-  finalStatus?: 'success' | 'failed';
-}
-
-export interface RepairReport {
-  executionId: string;
-  agentName: string;
-  attemptNumber: number;
-  maxAttempts: number;
-  originalError: string;
-  logEvidence: string;
-  diagnosedReason: string;
-  proposedCorrection: string;
-  appliedCorrection: string;
-  revalidationResult: string;
-  retestResult: string;
-  finalStatus: 'VERIFIED_SUCCESS' | 'FAILED';
-  timestamp: string;
-}
-
 export interface AgentTemplate {
   id: string;
   name: string;

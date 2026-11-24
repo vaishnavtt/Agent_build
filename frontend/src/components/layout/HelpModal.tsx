@@ -72,7 +72,7 @@ export const HelpModal: React.FC = () => {
                   <span>Automatic Self-Repair</span>
                 </div>
                 <p className="text-[#777777] leading-relaxed">
-                  If any step runs into a problem, AgentForge AI diagnoses the issue and repairs it in 1 click.
+                  Open Workflow repair in the Execution Monitor to check readiness or diagnose a recorded backend failure.
                 </p>
               </div>
             </div>

@@ -35,7 +35,6 @@ export const WorkflowValidationPage: React.FC = () => {
     generateRequirementTests,
     isTesting,
     setCurrentPage,
-    executeAutoRepair,
   } = useWorkflow();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'structural' | 'requirements' | 'tests'>('overview');
@@ -129,7 +128,7 @@ export const WorkflowValidationPage: React.FC = () => {
             </div>
             <p className="text-xs text-[#777777] mt-1.5 max-w-xl leading-relaxed">
               {hasErrors
-                ? 'One or more steps are missing instructions or links. Click "Fix Automatically" below and AgentForge AI will repair it instantly!'
+                ? 'One or more steps are missing instructions or links. Open repair to check whether recovery is available for a recorded failure.'
                 : warningCount > 0
                 ? 'Your assistant will execute, but you can review minor suggestions for maximum precision.'
                 : 'All building blocks, connections, and simulated scenarios passed with zero errors.'}
@@ -155,11 +154,11 @@ export const WorkflowValidationPage: React.FC = () => {
             <ElevatedButton
               variant="primary"
               size="md"
-              onClick={() => executeAutoRepair()}
+              onClick={() => setCurrentPage('activity')}
               icon={<Sparkles className="w-3.5 h-3.5" />}
               glow
             >
-              Fix Automatically
+              Open repair
             </ElevatedButton>
           )}
 
@@ -373,10 +372,10 @@ export const WorkflowValidationPage: React.FC = () => {
                   <ElevatedButton
                     variant="primary"
                     size="sm"
-                    onClick={() => executeAutoRepair()}
+                    onClick={() => setCurrentPage('activity')}
                     icon={<Sparkles className="w-3.5 h-3.5" />}
                   >
-                    Fix Automatically
+                    Open repair
                   </ElevatedButton>
                 )}
               </div>

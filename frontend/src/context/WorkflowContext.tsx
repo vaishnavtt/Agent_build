@@ -17,20 +17,16 @@ import {
   ValidationIssue,
   ExecutionRecord,
   ExecutionStep,
-  AutoRepairState,
-  RepairReport,
   AgentTemplate,
   AgentSummary,
   WorkflowNodeData,
   RequirementCoverageItem,
-  ExecutionLogEntry,
 } from '../types';
 import {
   COMPONENT_DEFINITIONS,
   INITIAL_NODES,
   INITIAL_EDGES,
   INITIAL_REQUIREMENT_COVERAGE,
-  SAMPLE_FAILURE_LOGS,
   SAMPLE_TEMPLATES,
   MOCK_TEST_CASES,
   MOCK_EXECUTION_HISTORY,
@@ -108,10 +104,6 @@ interface WorkflowContextType {
   currentExecution: ExecutionRecord | null;
   runAgentExecution: () => Promise<void>;
   isExecuting: boolean;
-  repairState: AutoRepairState;
-  repairReport: RepairReport | null;
-  triggerFailureScenario: () => void;
-  executeAutoRepair: () => Promise<void>;
   toasts: ToastMessage[];
   showToast: (title: string, description: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
   dismissToast: (id: string) => void;
@@ -194,23 +186,10 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [testCases, setTestCases] = useState<TestCase[]>(MOCK_TEST_CASES);
   const [isTesting, setIsTesting] = useState<boolean>(false);
 
-  // Execution & Self-Repair
+  // Execution activity
   const [executionHistory, setExecutionHistory] = useState<ExecutionRecord[]>(MOCK_EXECUTION_HISTORY);
   const [currentExecution, setCurrentExecution] = useState<ExecutionRecord | null>(MOCK_EXECUTION_HISTORY[0]);
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
-
-  const [repairState, setRepairState] = useState<AutoRepairState>({
-    isActive: false,
-    attemptCount: 0,
-    stage: 'idle',
-    problemFound: '',
-    whyItHappened: '',
-    logEvidence: [],
-    suggestedFix: '',
-    appliedCorrections: [],
-  });
-
-  const [repairReport, setRepairReport] = useState<RepairReport | null>(null);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -901,186 +880,6 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     showToast('Execution Completed', `"${activeAgentName}" executed successfully in 2.8s`, 'success');
   }, [nodes, activeAgentName, setNodes, showToast]);
 
-  // Trigger Failure Scenario (Step 11 & 12)
-  const triggerFailureScenario = useCallback(() => {
-    setNodes((nds) =>
-      nds.map((n) => {
-        const oldData = n.data as unknown as WorkflowNodeData;
-        if (oldData.componentType === 'LLM') {
-          return {
-            ...n,
-            data: {
-              ...oldData,
-              status: 'failed',
-              errorMessage: 'The AI Assistant component is missing its instructions.',
-              config: {
-                ...(oldData.config || {}),
-                instructions: '',
-              },
-            },
-          };
-        }
-        return n;
-      })
-    );
-
-    const execId = `exec-err-${Math.floor(1000 + Math.random() * 9000)}`;
-    const failedExec: ExecutionRecord = {
-      id: execId,
-      agentId: 'agent-active',
-      agentName: activeAgentName,
-      startedAt: 'Just now',
-      duration: '1.2s',
-      status: 'failed',
-      triggerType: 'Execution Engine Run',
-      errorSnippet: 'ValidationError: Field "instructions" is empty. AI Assistant component cannot formulate prompt without system instructions.',
-      logEvidence: SAMPLE_FAILURE_LOGS,
-      steps: [
-        { id: 's1', stepNumber: 1, componentName: 'Upload Resume', componentType: 'Input', activity: 'Received candidate CV', status: 'completed', timestamp: '15:10:01' },
-        { id: 's2', stepNumber: 2, componentName: 'Read Resume PDF', componentType: 'Document Reader', activity: 'Extracted text & skills', status: 'completed', timestamp: '15:10:01' },
-        { id: 's3', stepNumber: 3, componentName: 'Evaluate Fit (Gemini)', componentType: 'LLM', activity: 'ERROR: instructions field is empty. Failed prompt synthesis.', status: 'failed', timestamp: '15:10:02' },
-        { id: 's4', stepNumber: 4, componentName: 'Check Score Threshold', componentType: 'Condition', activity: 'Waiting on upstream AI node', status: 'waiting', timestamp: '15:10:02' },
-        { id: 's5', stepNumber: 5, componentName: 'Evaluation Report', componentType: 'Output', activity: 'Waiting on evaluation result', status: 'waiting', timestamp: '15:10:02' },
-      ],
-    };
-
-    setCurrentExecution(failedExec);
-
-    setRepairState({
-      isActive: true,
-      attemptCount: 0,
-      stage: 'idle',
-      problemFound: 'The AI Assistant component is missing its instructions.',
-      whyItHappened: 'The component needs instructions before it can process candidate skills and score alignment against the job description.',
-      logEvidence: SAMPLE_FAILURE_LOGS,
-      suggestedFix: 'Inject verified prompt instructions: "Analyze candidate skills in React, TypeScript, Python and score alignment from 1 to 10."',
-      appliedCorrections: [],
-    });
-
-    setRepairReport(null);
-    setCurrentPage('activity');
-    showToast('Execution Fault Detected', 'Execution halted at AI Assistant: Missing instructions.', 'error');
-  }, [activeAgentName, setNodes, showToast]);
-
-  // Execute Automatic Repair (Steps 13, 14, 15, 16 - Capped strictly at 2 attempts)
-  const executeAutoRepair = useCallback(async () => {
-    if (repairState.attemptCount >= 2) {
-      showToast('Maximum Repair Attempts Reached', 'AgentForge AI limits automatic repairs to 2 attempts.', 'warning');
-      return;
-    }
-
-    const nextAttempt = repairState.attemptCount + 1;
-
-    // Stage 1: Identifying
-    setRepairState((prev) => ({
-      ...prev,
-      attemptCount: nextAttempt,
-      stage: 'identifying',
-    }));
-    await new Promise((r) => setTimeout(r, 650));
-
-    // Stage 2: Preparing correction recipe
-    setRepairState((prev) => ({
-      ...prev,
-      stage: 'preparing',
-    }));
-    await new Promise((r) => setTimeout(r, 700));
-
-    // Stage 3: Applying correction directly to node config
-    const appliedInstruction = 'You are an expert HR recruitment specialist. Analyze the extracted resume text against required engineering skills (React, TypeScript, Python). Grade candidate fit from 1 to 10 and list pros & cons.';
-
-    setNodes((nds) =>
-      nds.map((n) => {
-        const oldData = n.data as unknown as WorkflowNodeData;
-        if (oldData.componentType === 'LLM') {
-          return {
-            ...n,
-            data: {
-              ...oldData,
-              status: 'ready' as const,
-              errorMessage: undefined,
-              config: {
-                ...(oldData.config || {}),
-                instructions: appliedInstruction,
-              },
-            },
-          };
-        }
-        return n;
-      })
-    );
-
-    setRepairState((prev) => ({
-      ...prev,
-      stage: 'applying',
-      appliedCorrections: [
-        ...prev.appliedCorrections,
-        `Applied targeted prompt instructions to component "Evaluate Fit (Gemini)": "${appliedInstruction.slice(0, 75)}..."`,
-      ],
-    }));
-    await new Promise((r) => setTimeout(r, 700));
-
-    // Stage 4: Re-checking workflow validation
-    setRepairState((prev) => ({
-      ...prev,
-      stage: 'checking',
-      revalidationStatus: 'passed',
-    }));
-    await new Promise((r) => setTimeout(r, 650));
-
-    // Stage 5: Re-running all tests
-    setRepairState((prev) => ({
-      ...prev,
-      stage: 'retesting',
-      retestStatus: 'passed',
-    }));
-    setTestCases((prev) => prev.map((tc) => ({ ...tc, status: 'passed' })));
-    await new Promise((r) => setTimeout(r, 750));
-
-    // Final Completion
-    setRepairState((prev) => ({
-      ...prev,
-      stage: 'completed',
-      finalStatus: 'success',
-    }));
-
-    // Update execution status
-    setCurrentExecution((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        status: 'repaired',
-        repaired: true,
-        repairAttempts: nextAttempt,
-        steps: prev.steps.map((st) =>
-          st.componentType === 'LLM'
-            ? { ...st, status: 'completed', activity: 'Repaired by AgentForge AI and verified successfully.' }
-            : { ...st, status: 'completed' }
-        ),
-      };
-    });
-
-    // Generate Final Repair Report (Step 16)
-    const report: RepairReport = {
-      executionId: currentExecution?.id || 'exec-repaired',
-      agentName: activeAgentName,
-      attemptNumber: nextAttempt,
-      maxAttempts: 2,
-      originalError: 'ValidationError: Field "instructions" is empty in component Evaluate Fit (Gemini).',
-      logEvidence: '[15:10:02.105] [Evaluate Fit (Gemini)] ERROR: ValidationError: Field "instructions" is empty.',
-      diagnosedReason: 'Model invoked without prompt instructions or evaluation criteria.',
-      proposedCorrection: 'Inject recruitment evaluation scoring instructions into AI Assistant.',
-      appliedCorrection: 'Updated component configuration field "instructions" with standard HR rubric.',
-      revalidationResult: 'PASSED (Readiness: 100%, 0 errors, 0 warnings)',
-      retestResult: 'PASSED (4 of 4 test scenarios successful)',
-      finalStatus: 'VERIFIED_SUCCESS',
-      timestamp: new Date().toLocaleTimeString(),
-    };
-
-    setRepairReport(report);
-    showToast('Workflow Repaired & Verified', 'Applied prompt instructions. Workflow passed validation and all test cases.', 'success');
-  }, [repairState.attemptCount, currentExecution, activeAgentName, setNodes, showToast]);
-
   return (
     <WorkflowContext.Provider
       value={{
@@ -1132,10 +931,6 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         currentExecution,
         runAgentExecution,
         isExecuting,
-        repairState,
-        repairReport,
-        triggerFailureScenario,
-        executeAutoRepair,
         toasts,
         showToast,
         dismissToast,

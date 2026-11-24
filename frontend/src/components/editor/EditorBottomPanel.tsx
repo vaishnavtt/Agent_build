@@ -22,8 +22,7 @@ export const EditorBottomPanel: React.FC = () => {
     isTesting,
     validationIssues,
     currentExecution,
-    executeAutoRepair,
-    triggerFailureScenario,
+    setCurrentPage,
   } = useWorkflow();
 
   const [isOpen, setIsOpen] = useState(true);
@@ -117,16 +116,6 @@ export const EditorBottomPanel: React.FC = () => {
               icon={<Play className="w-3 h-3 fill-[#B15F2C] text-[#B15F2C]" />}
             >
               Run All Tests
-            </ElevatedButton>
-          )}
-
-          {activeTab === 'issues' && isOpen && (
-            <ElevatedButton
-              variant="destructive"
-              size="sm"
-              onClick={() => triggerFailureScenario()}
-            >
-              Simulate Failure
             </ElevatedButton>
           )}
 
@@ -278,10 +267,10 @@ export const EditorBottomPanel: React.FC = () => {
                     <ElevatedButton
                       variant="primary"
                       size="sm"
-                      onClick={() => executeAutoRepair()}
+                      onClick={() => setCurrentPage('activity')}
                       icon={<Sparkles className="w-3.5 h-3.5" />}
                     >
-                      Fix Automatically
+                      Open repair
                     </ElevatedButton>
                   )}
                 </div>
