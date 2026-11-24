@@ -18,6 +18,8 @@ from app.services.repair.service import WorkflowSnapshot
 
 
 class RecoveryStatus(StrEnum):
+    ATTEMPT_RESERVATION_BLOCKED = "attempt_reservation_blocked"
+    ATTEMPT_LIMIT_REACHED = "attempt_limit_reached"
     INVALID_CONTEXT = "invalid_context"
     HUMAN_REVIEW = "human_review"
     UNRESOLVED = "unresolved"
@@ -57,6 +59,50 @@ class RevisionUpdate(StrEnum):
 
 class RevisionConflict(Exception):
     """A snapshot adapter found that the expected original revision is stale."""
+
+
+class AttemptReservation(StrEnum):
+    RESERVED = "reserved"
+    LIMIT_REACHED = "limit_reached"
+    CONFLICT = "conflict"
+    UNAVAILABLE = "unavailable"
+
+
+class RecoveryScope(RepairContract):
+    workflow_id: Identifier
+    workflow_revision_id: Identifier
+    execution_run_id: Identifier
+
+
+class DurableAttempts(Protocol):
+    """Member 1 owns atomicity, uniqueness and persistence across workers."""
+
+    def begin(self, scope: RecoveryScope) -> AttemptReservation:
+        """Claim the recovery once for this scope, including completed requests."""
+        ...
+
+    def reserve(self, scope: RecoveryScope, number: int, *, limit: int) -> AttemptReservation:
+        """Atomically reserve exactly this next attempt under the claimed scope."""
+        ...
+
+    def finish(self, scope: RecoveryScope, result: "RecoveryResult") -> None:
+        """Record the terminal outcome without allowing the same scope to restart."""
+        ...
+
+
+def context_issue(failure: FailureInformation, context: DiagnosisContext | None) -> str | None:
+    if context is None or (
+        context.workflow_id != failure.workflow_id
+        or context.workflow_revision_id != failure.workflow_revision_id
+        or context.execution_run_id != failure.execution_run_id
+    ):
+        return "Trusted context does not match the failed run and revision."
+    node_id = failure.failed_node_id
+    if node_id is not None and sum(node.node_id == node_id for node in context.nodes) != 1:
+        return "The failed node ID does not identify exactly one node."
+    if context.configuration_evidence is not None and context.configuration_evidence.node_id != node_id:
+        return "The field evidence conflicts with the failed node."
+    return None
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,7 @@
 """LangGraph orchestration for one recovery invocation."""
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from uuid import uuid4
 
@@ -20,6 +21,7 @@ from app.services.repair.diagnosis_router import DiagnosisOutcome, DiagnosisRout
 from app.services.repair.planning import RepairPlan, RepairPlanner, UnsafeRepair
 from app.services.repair.recovery_contracts import (
     AttemptStatus,
+    AttemptReservation,
     CandidateEvidence,
     ProposalReference,
     RecoveryAttempt,
@@ -35,6 +37,7 @@ from app.services.repair.recovery_contracts import (
     RevisionUpdate,
     SnapshotSource,
     VerificationBaseline,
+    context_issue,
 )
 from app.services.repair.service import WorkflowSnapshot
 
@@ -66,6 +69,7 @@ class RecoveryState(TypedDict, total=False):
 @dataclass
 class _RunData:
     request: RecoveryRequest
+    reserve: Callable[[int], AttemptReservation] | None = None
     snapshot: WorkflowSnapshot | None = None
     plan: RepairPlan | None = None
     attempted_plans: list[RepairPlan] = field(default_factory=list)
@@ -121,7 +125,7 @@ class RecoveryGraph:
             "check_eligibility": ("preserve_snapshot", "finalize"),
             "preserve_snapshot": ("plan", "finalize"),
             "plan": ("reserve_attempt", "rollback", "finalize"),
-            "reserve_attempt": ("apply_candidate", "rollback"),
+            "reserve_attempt": ("apply_candidate", "rollback", "finalize"),
             "apply_candidate": ("verify_candidate", "finalize"),
             "decide": ("promote", "plan", "rollback", "finalize"),
         }.items():
@@ -131,7 +135,9 @@ class RecoveryGraph:
         graph.add_edge("finalize", END)
         return graph.compile()
 
-    def recover(self, request: RecoveryRequest) -> RecoveryResult:
+    def recover(
+        self, request: RecoveryRequest, *, reserve: Callable[[int], AttemptReservation] | None = None
+    ) -> RecoveryResult:
         failure = request.failure
         state: RecoveryState = {
             "original": RevisionReference(failure.workflow_id, failure.workflow_revision_id),
@@ -142,7 +148,7 @@ class RecoveryGraph:
         try:
             with tracing_context(enabled=False):
                 for state in self.graph.stream(
-                    state, context=_RunData(request),
+                    state, context=_RunData(request, reserve),
                     config={"recursion_limit": RECOVERY_RECURSION_LIMIT},
                     stream_mode="values",
                 ):
@@ -158,18 +164,10 @@ class RecoveryGraph:
             return self._finalize(state)["result"]
 
     def _validate_context(self, state: RecoveryState, runtime: Runtime[_RunData]) -> RecoveryState:
-        failure, context = runtime.context.request.failure, runtime.context.request.context
-        if context is None or (
-            context.workflow_id != failure.workflow_id
-            or context.workflow_revision_id != failure.workflow_revision_id
-            or context.execution_run_id != failure.execution_run_id
-        ):
-            return _finish(RecoveryStatus.INVALID_CONTEXT, "Trusted context does not match the failed run and revision.")
-        node_id = failure.failed_node_id
-        if node_id is not None and sum(node.node_id == node_id for node in context.nodes) != 1:
-            return _finish(RecoveryStatus.INVALID_CONTEXT, "The failed node ID does not identify exactly one node.")
-        if context.configuration_evidence is not None and context.configuration_evidence.node_id != node_id:
-            return _finish(RecoveryStatus.INVALID_CONTEXT, "The field evidence conflicts with the failed node.")
+        request = runtime.context.request
+        issue = context_issue(request.failure, request.context)
+        if issue:
+            return _finish(RecoveryStatus.INVALID_CONTEXT, issue)
         return {"route": "diagnose"}
 
     def _diagnose(self, state: RecoveryState, runtime: Runtime[_RunData]) -> RecoveryState:
@@ -245,8 +243,21 @@ class RecoveryGraph:
     def _reserve_attempt(self, state: RecoveryState, runtime: Runtime[_RunData]) -> RecoveryState:
         if state["attempt_count"] >= MAX_AUTOMATIC_REPAIR_ATTEMPTS:
             return _stop_retrying(RetryStopReason.ATTEMPT_LIMIT_REACHED)
-        runtime.context.attempted_plans.append(runtime.context.plan)
         number = state["attempt_count"] + 1
+        reserve = runtime.context.reserve
+        if reserve is not None:
+            try:
+                decision = reserve(number)
+            except Exception:
+                decision = AttemptReservation.UNAVAILABLE
+            if decision is AttemptReservation.LIMIT_REACHED:
+                return _finish(RecoveryStatus.ATTEMPT_LIMIT_REACHED, "The durable two-attempt budget is exhausted.")
+            if decision is not AttemptReservation.RESERVED:
+                return _finish(
+                    RecoveryStatus.ATTEMPT_RESERVATION_BLOCKED,
+                    "A durable reservation could not be confirmed. The candidate was not applied.",
+                )
+        runtime.context.attempted_plans.append(runtime.context.plan)
         return {
             "attempt_count": number,
             "attempts": (*state["attempts"], RecoveryAttempt(number, state["proposal"])),
