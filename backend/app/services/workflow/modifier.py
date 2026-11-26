@@ -18,6 +18,7 @@ from app.schemas.workflow import (
 )
 from app.services.workflow.components import component_library
 from app.services.workflow.versioning import increment_version, compare_workflows, WorkflowDiff
+from app.services.workflow.validator import workflow_validator
 
 
 class WorkflowModifier:
@@ -25,6 +26,29 @@ class WorkflowModifier:
 
     def __init__(self):
         self.library = component_library
+        self.validator = workflow_validator
+
+    def validate_modification(self, workflow: WorkflowBase) -> None:
+        """
+        Validates modification rules:
+        - All node types are supported canonical types
+        - All node configs conform to schema
+        - All edges reference valid existing nodes
+        - No self-loops
+        """
+        node_ids = {n.id for n in workflow.nodes}
+        for n in workflow.nodes:
+            if not self.library.is_supported(n.type):
+                raise ValueError(f"Unsupported component type '{n.type}' on node '{n.id}'.")
+            self.library.validate_node_config(n.type, n.config or {})
+
+        for e in workflow.edges:
+            if e.source not in node_ids:
+                raise ValueError(f"Invalid reference: Edge '{e.id}' references nonexistent source '{e.source}'.")
+            if e.target not in node_ids:
+                raise ValueError(f"Invalid reference: Edge '{e.id}' references nonexistent target '{e.target}'.")
+            if e.source == e.target:
+                raise ValueError(f"Malformed connection: Edge '{e.id}' creates an invalid self-loop on '{e.source}'.")
 
     def update_node_config(
         self,
@@ -54,6 +78,7 @@ class WorkflowModifier:
             raise ValueError(f"Node '{node_id}' not found in workflow '{workflow.name}'.")
 
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def update_node(
@@ -95,6 +120,7 @@ class WorkflowModifier:
             target_node.config = self.library.validate_node_config(target_node.type, merged)
 
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def add_node(
@@ -162,6 +188,7 @@ class WorkflowModifier:
                 )
 
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def remove_node(
@@ -204,6 +231,7 @@ class WorkflowModifier:
                     )
 
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def add_edge(
@@ -229,6 +257,7 @@ class WorkflowModifier:
 
         cloned.edges.append(new_edge)
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def remove_edge(
@@ -246,6 +275,7 @@ class WorkflowModifier:
             raise ValueError(f"Edge '{edge_id}' not found.")
 
         cloned.version = increment_version(cloned.version, bump=bump_version)
+        self.validate_modification(cloned)
         return cloned
 
     def apply_patch(
@@ -292,6 +322,9 @@ class WorkflowModifier:
 
         # Enforce atomic single-bump for the entire batch patch
         current.version = increment_version(orig_version, bump=bump)
+
+        # Validate modified workflow before accepting it
+        self.validate_modification(current)
 
         diff = compare_workflows(workflow, current)
         return current, diff

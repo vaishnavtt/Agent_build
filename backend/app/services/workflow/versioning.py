@@ -108,12 +108,18 @@ def compare_workflows(
     v1_edges = {e.id: e for e in (v1.edges or [])}
     v2_edges = {e.id: e for e in (v2.edges or [])}
 
-    added_nodes = [v2_nodes[nid] for nid in v2_nodes if nid not in v1_nodes]
-    removed_nodes = [v1_nodes[nid] for nid in v1_nodes if nid not in v2_nodes]
+    added_nodes = sorted(
+        [v2_nodes[nid] for nid in v2_nodes if nid not in v1_nodes],
+        key=lambda n: n.id,
+    )
+    removed_nodes = sorted(
+        [v1_nodes[nid] for nid in v1_nodes if nid not in v2_nodes],
+        key=lambda n: n.id,
+    )
     modified_nodes: List[NodeDiff] = []
 
-    # Check shared nodes for modifications
-    for nid in v1_nodes:
+    # Check shared nodes for modifications in deterministic order
+    for nid in sorted(v1_nodes.keys()):
         if nid in v2_nodes:
             n1 = v1_nodes[nid]
             n2 = v2_nodes[nid]
@@ -154,11 +160,17 @@ def compare_workflows(
                 )
 
     # Edge diffs
-    added_edges = [v2_edges[eid] for eid in v2_edges if eid not in v1_edges]
-    removed_edges = [v1_edges[eid] for eid in v1_edges if eid not in v2_edges]
+    added_edges = sorted(
+        [v2_edges[eid] for eid in v2_edges if eid not in v1_edges],
+        key=lambda e: e.id,
+    )
+    removed_edges = sorted(
+        [v1_edges[eid] for eid in v1_edges if eid not in v2_edges],
+        key=lambda e: e.id,
+    )
     modified_edges: List[EdgeDiff] = []
 
-    for eid in v1_edges:
+    for eid in sorted(v1_edges.keys()):
         if eid in v2_edges:
             e1 = v1_edges[eid]
             e2 = v2_edges[eid]
@@ -284,8 +296,15 @@ class WorkflowHistory:
     def __init__(self):
         self._history: Dict[str, WorkflowBase] = {}
 
-    def save_version(self, workflow: WorkflowBase) -> str:
-        """Save a snapshot of a workflow version."""
+    def save_version(self, workflow: WorkflowBase, allow_overwrite: bool = False) -> str:
+        """
+        Save an immutable snapshot of a workflow version.
+        Guards against accidental overwriting of previous snapshots.
+        """
+        if workflow.version in self._history and not allow_overwrite:
+            raise ValueError(
+                f"Version '{workflow.version}' already exists in history. Versions are immutable snapshots and cannot be overwritten."
+            )
         self._history[workflow.version] = copy.deepcopy(workflow)
         return workflow.version
 

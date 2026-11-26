@@ -9,7 +9,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 
 from app.schemas.workflow import WorkflowBase, WorkflowCreate
-from app.services.ai import agent_architect, ArchitectExecutionPlan
+try:
+    from app.services.ai import agent_architect, ArchitectExecutionPlan
+    HAS_MEMBER_2 = True
+except (ImportError, ModuleNotFoundError):
+    agent_architect = None
+    ArchitectExecutionPlan = None
+    HAS_MEMBER_2 = False
 from app.services.workflow import (
     component_library,
     workflow_generator,
@@ -21,6 +27,10 @@ from app.services.workflow import (
     ExecutionPlan,
     ValidationResult,
     WorkflowDiff,
+    create_simple_execution_workflow,
+    create_conditional_branching_workflow,
+    create_branch_joins_workflow,
+    create_human_approval_workflow,
 )
 
 router = APIRouter(prefix="/workflows", tags=["Workflows (Member 3)"])
@@ -92,6 +102,13 @@ class WorkflowRollbackResponse(BaseModel):
     diff: WorkflowDiff
 
 
+class ReactFlowPayload(BaseModel):
+    name: Optional[str] = "Visual Studio Workflow"
+    description: Optional[str] = None
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -160,6 +177,11 @@ def generate_from_prompt(req: GenerateFromPromptRequest):
     2. Member 3 Workflow Generator converts plan into React Flow compatible Workflow JSON.
     3. Member 3 Workflow Validator verifies topology, connections, handles, and configs.
     """
+    if not HAS_MEMBER_2 or agent_architect is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Member 2 (AI Requirement Analysis & Agent Architect) is unavailable in this environment. Please supply a structured execution plan directly to /api/v1/workflows/generate.",
+        )
     try:
         plan = agent_architect.analyze_requirement(req.prompt)
         workflow = workflow_generator.generate(plan)
@@ -245,3 +267,42 @@ def rollback_workflow(req: WorkflowRollbackRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to rollback workflow: {str(e)}",
         )
+
+
+@router.post(
+    "/to-react-flow",
+    summary="Transform canonical Workflow JSON into React Flow nodes and edges",
+)
+def export_to_react_flow(workflow: WorkflowBase):
+    """Converts a canonical workflow into @xyflow/react canvas graph structures."""
+    return workflow_generator.to_react_flow(workflow)
+
+
+@router.post(
+    "/from-react-flow",
+    response_model=WorkflowCreate,
+    summary="Transform React Flow nodes and edges into canonical Workflow JSON",
+)
+def import_from_react_flow(payload: ReactFlowPayload):
+    """Converts @xyflow/react canvas graph structures back into a validated WorkflowCreate."""
+    try:
+        return workflow_generator.from_react_flow(payload.model_dump())
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Failed to convert React Flow payload: {str(e)}",
+        )
+
+
+@router.get(
+    "/fixtures",
+    summary="List canonical Member 3 & Member 4 compatibility workflow fixtures",
+)
+def get_shared_fixtures():
+    """Returns canonical test fixtures for Member 3/4 integration: simple, conditional, branch_joins, human_approval."""
+    return {
+        "simple_execution": create_simple_execution_workflow(),
+        "conditional_branching": create_conditional_branching_workflow(),
+        "branch_joins": create_branch_joins_workflow(),
+        "human_approval": create_human_approval_workflow(),
+    }

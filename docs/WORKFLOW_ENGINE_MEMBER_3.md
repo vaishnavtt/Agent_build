@@ -279,6 +279,9 @@ All endpoints are registered under `/api/v1/workflows`:
 | `POST` | `/api/v1/workflows/compare` | `WorkflowCompareRequest` | `WorkflowDiff` (200) | Compare two workflow revisions and compute delta. |
 | `POST` | `/api/v1/workflows/modify` | `WorkflowModifyRequest` | `WorkflowModifyResponse` (200) | Apply targeted modifications or self-repair patch. |
 | `POST` | `/api/v1/workflows/rollback` | `WorkflowRollbackRequest` | `WorkflowRollbackResponse` (200) | Rollback workflow to an earlier version while tracking changes. |
+| `POST` | `/api/v1/workflows/to-react-flow` | `WorkflowBase` | `ReactFlowGraph` (200) | Export canonical workflow JSON into React Flow nodes and edges. |
+| `POST` | `/api/v1/workflows/from-react-flow` | `ReactFlowPayload` | `WorkflowCreate` (200) | Import React Flow nodes and edges back into validated canonical workflow. |
+| `GET` | `/api/v1/workflows/fixtures` | None | `Dict[str, WorkflowCreate]` (200) | Retrieve the 4 Member 3 & Member 4 shared compatibility fixtures. |
 
 ---
 
@@ -304,3 +307,25 @@ Generated workflows provide structural configuration flags and ISO-8601 timestam
    - Canonical definitions generated via `to_workflow_definition()` include ISO-8601 `createdAt` and `updatedAt` metadata timestamps.
 4. **Boundary Separation**:
    - Static workflow definitions do **not** invent runtime execution metrics (such as execution duration, running step statuses, or logs). Those are captured dynamically by Member 4's LangGraph execution runner and persisted by Member 1 in execution history tables.
+
+---
+
+## 10. Member 4 Shared Contract & Compatibility Fixtures
+
+Member 3 and Member 4 coordinate a zero-conflict shared interface contract:
+
+1. **Condition Node Operator Support**:
+   - Operators: `==`, `!=`, `>`, `<`, `>=`, `<=`, `equals`, `not_equals`, `greater_than`, `less_than`, `greater_than_or_equal`, `less_than_or_equal`, `contains`, `not_contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `is_true`, `is_false`, `regex_match`.
+   - Aliases: `variable` (alias for `leftOperand`) and `value` (alias for `rightOperand`) are bi-directionally synchronized.
+2. **Human Approval Gate Support**:
+   - Aliases: `prompt` and `promptMessage` are bi-directionally synchronized.
+   - Handles: `approved` (main continuation path) and `rejected` (rejection path).
+3. **Canonical Shared Fixtures (`backend/app/services/workflow/fixtures.py`)**:
+   - `create_simple_execution_workflow()`: Linear Input -> Output pipeline.
+   - `create_conditional_branching_workflow()`: Input -> Condition -> [true: LLM, false: Tool] -> Output.
+   - `create_branch_joins_workflow()`: Input -> Condition -> [Tool A, Tool B] -> Convergence at LLM -> Output.
+   - `create_human_approval_workflow()`: Input -> Document Reader -> Human Approval gate -> Output.
+4. **React Flow Integration**:
+   - `workflow_generator.to_react_flow(workflow)` transforms canonical definitions into canvas-ready node and edge payloads for `@xyflow/react`.
+   - `workflow_generator.from_react_flow(payload)` validates and reconstructs canonical `WorkflowCreate` definitions from React Flow graph states.
+   - Endpoints: `POST /api/v1/workflows/to-react-flow` and `POST /api/v1/workflows/from-react-flow`.

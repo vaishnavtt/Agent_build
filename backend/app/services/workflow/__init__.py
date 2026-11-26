@@ -45,6 +45,12 @@ from app.services.workflow.modifier import (
     WorkflowModifier,
     workflow_modifier,
 )
+from app.services.workflow.fixtures import (
+    create_simple_execution_workflow,
+    create_conditional_branching_workflow,
+    create_branch_joins_workflow,
+    create_human_approval_workflow,
+)
 
 __all__ = [
     # Components
@@ -84,4 +90,9 @@ __all__ = [
     # Modifier
     "WorkflowModifier",
     "workflow_modifier",
+    # Shared Fixtures
+    "create_simple_execution_workflow",
+    "create_conditional_branching_workflow",
+    "create_branch_joins_workflow",
+    "create_human_approval_workflow",
 ]

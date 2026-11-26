@@ -65,8 +65,18 @@ class WorkflowGenerator:
     def generate(self, plan: Union[ExecutionPlan, Any, Dict[str, Any]]) -> WorkflowCreate:
         """
         Convert a Member 2 ExecutionPlan or ArchitectExecutionPlan into an executable WorkflowCreate object.
+        Validates against duplicate step identifiers, unresolved references, and validates the output workflow.
         """
         parsed_plan = self._adapt_execution_plan(plan)
+
+        # 0. Reject duplicate step identifiers
+        seen_step_ids = set()
+        for idx, step in enumerate(parsed_plan.steps):
+            sid = step.id or step.step_id
+            if sid:
+                if sid in seen_step_ids:
+                    raise ValueError(f"Duplicate step identifier '{sid}' found in execution plan.")
+                seen_step_ids.add(sid)
 
         nodes: List[WorkflowNodeSchema] = []
         edges: List[WorkflowEdgeSchema] = []
@@ -74,7 +84,7 @@ class WorkflowGenerator:
         step_to_node_id: Dict[str, str] = {}
         node_type_counts: Dict[str, int] = {}
 
-        # 1. First pass: Assign unique node IDs and instantiate nodes
+        # 1. First pass: Assign stable, unique node IDs and instantiate nodes
         for idx, step in enumerate(parsed_plan.steps):
             raw_type = step.component_type.strip()
             # Normalize casing if needed
@@ -82,7 +92,16 @@ class WorkflowGenerator:
 
             node_type_counts[matched_type] = node_type_counts.get(matched_type, 0) + 1
             node_slug = matched_type.lower().replace(" ", "_")
-            node_id = f"node_{node_slug}_{node_type_counts[matched_type]}"
+
+            # Preserve stable node identifier if step ID provided
+            if step.id and step.id.strip():
+                clean_id = step.id.strip()
+                node_id = clean_id if clean_id.startswith("node_") else f"node_{clean_id}"
+            elif step.step_id and step.step_id.strip():
+                clean_id = step.step_id.strip()
+                node_id = clean_id if clean_id.startswith("node_") else f"node_{clean_id}"
+            else:
+                node_id = f"node_{node_slug}_{node_type_counts[matched_type]}"
 
             # Map all possible step references to this unique node ID
             step_to_node_id[node_id] = node_id
@@ -117,6 +136,12 @@ class WorkflowGenerator:
             input_handles = step.inputs if step.inputs else default_inputs
             output_handles = step.outputs if step.outputs else default_outputs
 
+            # Preserve input and output mappings in config as well
+            if step.inputs:
+                merged_config["inputs"] = list(step.inputs)
+            if step.outputs:
+                merged_config["outputs"] = list(step.outputs)
+
             node = WorkflowNodeSchema(
                 id=node_id,
                 type=matched_type,  # type: ignore
@@ -128,7 +153,7 @@ class WorkflowGenerator:
             )
             nodes.append(node)
 
-        # 2. Second pass: Generate edges/connections
+        # 2. Second pass: Validate step references and generate edges/connections
         edge_counter = 1
         for idx, step in enumerate(parsed_plan.steps):
             src_node_id = step_to_node_id.get(step.get_identifier()) or step_to_node_id.get(str(idx))
@@ -141,44 +166,82 @@ class WorkflowGenerator:
             # Handle conditional branching
             if step.branch_conditions:
                 for cond_key, target_ref in step.branch_conditions.items():
-                    target_node_id = step_to_node_id.get(target_ref)
-                    if target_node_id and target_node_id != src_node_id:
-                        edge_id = f"edge_{edge_counter}_{src_node_id}_{target_node_id}"
-                        edge_counter += 1
-
-                        # Match handle to condition key if available
-                        src_handle = cond_key if cond_key in src_outputs else (src_outputs[0] if src_outputs else None)
-
-                        edges.append(
-                            WorkflowEdgeSchema(
-                                id=edge_id,
-                                source=src_node_id,
-                                target=target_node_id,
-                                sourceHandle=src_handle,
-                                condition=cond_key,
-                            )
+                    if target_ref not in step_to_node_id:
+                        raise ValueError(
+                            f"Unresolved step reference in branch '{cond_key}' of step '{step.title}': target '{target_ref}' does not exist in plan."
                         )
+                    target_node_id = step_to_node_id[target_ref]
+                    if target_node_id == src_node_id:
+                        raise ValueError(f"Malformed connection: Step '{step.title}' cannot conditionally branch to itself.")
+
+                    target_node = next((n for n in nodes if n.id == target_node_id), None)
+                    tgt_inputs = target_node.inputHandles if target_node else []
+                    tgt_handle = tgt_inputs[0] if tgt_inputs else None
+
+                    edge_id = f"edge_{edge_counter}_{src_node_id}_{target_node_id}"
+                    edge_counter += 1
+
+                    # Match handle to condition key if available
+                    cond_clean = str(cond_key).lower().strip()
+                    if cond_clean in ("true", "false"):
+                        src_handle = cond_clean
+                    elif cond_key in src_outputs:
+                        src_handle = cond_key
+                    else:
+                        src_handle = "true" if "true" in src_outputs else (src_outputs[0] if src_outputs else None)
+
+                    edges.append(
+                        WorkflowEdgeSchema(
+                            id=edge_id,
+                            source=src_node_id,
+                            target=target_node_id,
+                            sourceHandle=src_handle,
+                            targetHandle=tgt_handle,
+                            condition=str(cond_key),
+                        )
+                    )
 
             # Handle explicit next_steps
             elif step.next_steps:
                 for target_ref in step.next_steps:
-                    target_node_id = step_to_node_id.get(target_ref)
-                    if target_node_id and target_node_id != src_node_id:
-                        edge_id = f"edge_{edge_counter}_{src_node_id}_{target_node_id}"
-                        edge_counter += 1
-                        src_handle = src_outputs[0] if src_outputs else None
-                        edges.append(
-                            WorkflowEdgeSchema(
-                                id=edge_id,
-                                source=src_node_id,
-                                target=target_node_id,
-                                sourceHandle=src_handle,
-                            )
+                    if target_ref not in step_to_node_id:
+                        raise ValueError(
+                            f"Unresolved step reference in next_steps of step '{step.title}': target '{target_ref}' does not exist in plan."
                         )
+                    target_node_id = step_to_node_id[target_ref]
+                    if target_node_id == src_node_id:
+                        raise ValueError(f"Malformed connection: Step '{step.title}' cannot connect to itself.")
+
+                    target_node = next((n for n in nodes if n.id == target_node_id), None)
+                    tgt_inputs = target_node.inputHandles if target_node else []
+                    tgt_handle = tgt_inputs[0] if tgt_inputs else None
+
+                    edge_id = f"edge_{edge_counter}_{src_node_id}_{target_node_id}"
+                    edge_counter += 1
+
+                    # For Human Approval branching or standard outputs
+                    if src_node and src_node.type == "Human Approval":
+                        src_handle = "approved" if "approved" in src_outputs else (src_outputs[0] if src_outputs else None)
+                    else:
+                        src_handle = src_outputs[0] if src_outputs else None
+
+                    edges.append(
+                        WorkflowEdgeSchema(
+                            id=edge_id,
+                            source=src_node_id,
+                            target=target_node_id,
+                            sourceHandle=src_handle,
+                            targetHandle=tgt_handle,
+                        )
+                    )
 
             # If no explicit links, connect sequentially to the next node by default
             elif idx + 1 < len(nodes):
                 target_node_id = nodes[idx + 1].id
+                target_node = nodes[idx + 1]
+                tgt_inputs = target_node.inputHandles if target_node else []
+                tgt_handle = tgt_inputs[0] if tgt_inputs else None
+
                 edge_id = f"edge_{edge_counter}_{src_node_id}_{target_node_id}"
                 edge_counter += 1
                 src_handle = src_outputs[0] if src_outputs else None
@@ -188,6 +251,7 @@ class WorkflowGenerator:
                         source=src_node_id,
                         target=target_node_id,
                         sourceHandle=src_handle,
+                        targetHandle=tgt_handle,
                     )
                 )
 
@@ -207,7 +271,7 @@ class WorkflowGenerator:
         if "generated" not in tags:
             tags.append("generated")
 
-        return WorkflowCreate(
+        wf = WorkflowCreate(
             name=parsed_plan.name,
             description=description,
             version=parsed_plan.version or "1.0.0",
@@ -216,6 +280,15 @@ class WorkflowGenerator:
             edges=edges,
             tags=tags,
         )
+
+        # 5. Validate generated workflow before returning it
+        from app.services.workflow.validator import workflow_validator
+        validation_res = workflow_validator.validate(wf)
+        if not validation_res.is_valid:
+            err_summary = "; ".join(f"[{i.severity.value}] {i.node_id or 'workflow'}: {i.description}" for i in validation_res.errors)
+            raise ValueError(f"Generated workflow failed validation: {err_summary}")
+
+        return wf
 
     def to_workflow_definition(
         self,
@@ -261,6 +334,117 @@ class WorkflowGenerator:
             nodes=[WorkflowNodeSchema(**n) for n in definition.get("nodes", [])],
             edges=[WorkflowEdgeSchema(**e) for e in definition.get("edges", [])],
         )
+
+    def to_react_flow(self, workflow: Union[WorkflowBase, Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Convert canonical Workflow into React Flow node and edge definitions
+        compatible with @xyflow/react canvas editor.
+        """
+        if isinstance(workflow, dict):
+            wf_nodes = workflow.get("nodes", [])
+            wf_edges = workflow.get("edges", [])
+            wf_name = workflow.get("name", "Workflow")
+        else:
+            wf_nodes = [n.model_dump() for n in workflow.nodes]
+            wf_edges = [e.model_dump() for e in workflow.edges]
+            wf_name = workflow.name
+
+        rf_nodes = []
+        for n in wf_nodes:
+            rf_nodes.append({
+                "id": n["id"],
+                "type": "custom",
+                "position": n.get("position", {"x": 100.0, "y": 100.0}),
+                "data": {
+                    "label": n.get("name", n["id"]),
+                    "componentType": n.get("type", "LLM"),
+                    "description": n.get("description", f"{n.get('type')} step"),
+                    "status": "ready",
+                    "config": n.get("config", {}),
+                    "inputHandles": n.get("inputHandles", []),
+                    "outputHandles": n.get("outputHandles", []),
+                }
+            })
+
+        rf_edges = []
+        for e in wf_edges:
+            rf_edges.append({
+                "id": e["id"],
+                "source": e["source"],
+                "target": e["target"],
+                "sourceHandle": e.get("sourceHandle"),
+                "targetHandle": e.get("targetHandle"),
+                "condition": e.get("condition"),
+                "animated": True,
+            })
+
+        return {
+            "name": wf_name,
+            "nodes": rf_nodes,
+            "edges": rf_edges,
+        }
+
+    def from_react_flow(
+        self,
+        payload: Dict[str, Any],
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> WorkflowCreate:
+        """
+        Convert React Flow nodes and edges back into an executable WorkflowCreate definition.
+        """
+        rf_nodes = payload.get("nodes", [])
+        rf_edges = payload.get("edges", [])
+
+        nodes = []
+        for n in rf_nodes:
+            data = n.get("data", {})
+            comp_type = data.get("componentType") or n.get("type") or "LLM"
+            comp_type = self._normalize_component_type(comp_type)
+            name_label = data.get("label") or n.get("name") or n.get("id")
+            pos = n.get("position", {"x": 0.0, "y": 0.0})
+
+            nodes.append(
+                WorkflowNodeSchema(
+                    id=n["id"],
+                    type=comp_type,
+                    name=name_label,
+                    position=NodePosition(x=float(pos.get("x", 0.0)), y=float(pos.get("y", 0.0))),
+                    config=data.get("config", {}),
+                    inputHandles=data.get("inputHandles", []),
+                    outputHandles=data.get("outputHandles", []),
+                )
+            )
+
+        edges = []
+        for e in rf_edges:
+            edges.append(
+                WorkflowEdgeSchema(
+                    id=e["id"],
+                    source=e["source"],
+                    target=e["target"],
+                    sourceHandle=e.get("sourceHandle"),
+                    targetHandle=e.get("targetHandle"),
+                    condition=e.get("condition"),
+                )
+            )
+
+        wf_name = name or payload.get("name", "Visual Studio Workflow")
+        wf = WorkflowCreate(
+            name=wf_name,
+            description=description or "Created in React Flow visual editor",
+            version="1.0.0",
+            nodes=nodes,
+            edges=edges,
+        )
+
+        from app.services.workflow.validator import workflow_validator
+        validation_res = workflow_validator.validate(wf)
+        if not validation_res.is_valid:
+            err_summary = "; ".join(f"[{i.severity.value}] {i.node_id or 'workflow'}: {i.description}" for i in validation_res.errors)
+            raise ValueError(f"React Flow workflow failed validation: {err_summary}")
+
+        return wf
 
     def _adapt_execution_plan(self, plan: Any) -> ExecutionPlan:
         """

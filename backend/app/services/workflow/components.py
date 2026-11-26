@@ -63,6 +63,18 @@ class DocumentReaderNodeConfig(BaseModel):
     supportedExtensions: List[str] = Field(
         default_factory=lambda: [".pdf", ".txt", ".md", ".docx"]
     )
+    filePath: Optional[str] = None
+    file_path: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_file_path(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "file_path" in data and "filePath" not in data:
+                data["filePath"] = data["file_path"]
+            elif "filePath" in data and "file_path" not in data:
+                data["file_path"] = data["filePath"]
+        return data
 
     @model_validator(mode="after")
     def validate_overlap(self) -> "DocumentReaderNodeConfig":
@@ -76,10 +88,21 @@ class DocumentReaderNodeConfig(BaseModel):
 class ToolNodeConfig(BaseModel):
     """Configuration for Tool Node."""
     toolName: str = "web_search"
+    tool: Optional[str] = None
     method: Literal["GET", "POST", "PUT", "DELETE"] = "POST"
     endpoint: str = ""
     timeoutSeconds: int = Field(default=30, ge=1, le=300)
     headers: Dict[str, str] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_tool_alias(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "tool" in data and "toolName" not in data:
+                data["toolName"] = data["tool"]
+            elif "toolName" in data and "tool" not in data:
+                data["tool"] = data["toolName"]
+        return data
 
     @field_validator("toolName")
     @classmethod
@@ -89,13 +112,45 @@ class ToolNodeConfig(BaseModel):
         return v.strip()
 
 
+SUPPORTED_CONDITION_OPERATORS = [
+    "equals", "not_equals", "contains", "not_contains", "greater_than", "less_than",
+    "greater_than_or_equal", "less_than_or_equal", "starts_with", "ends_with",
+    "is_empty", "is_not_empty", "is_true", "is_false", "regex_match",
+    "==", "!=", ">", "<", ">=", "<=", "eq", "neq", "gt", "lt", "gte", "lte",
+    "is", "is_not", "in", "not_in", "true", "false",
+]
+
+
 class ConditionNodeConfig(BaseModel):
-    """Configuration for Condition Node."""
-    operator: Literal[
-        "equals", "not_equals", "contains", "greater_than", "less_than", "regex_match"
-    ] = "equals"
+    """Configuration for Condition Node (Member 4 Execution Engine compatible)."""
+    operator: str = "equals"
     leftOperand: str = "status"
     rightOperand: Any = "success"
+    variable: Optional[str] = None
+    value: Optional[Any] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_condition_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "variable" in data and "leftOperand" not in data:
+                data["leftOperand"] = str(data["variable"])
+            elif "leftOperand" in data and "variable" not in data:
+                data["variable"] = str(data["leftOperand"])
+            if "value" in data and "rightOperand" not in data:
+                data["rightOperand"] = data["value"]
+            elif "rightOperand" in data and "value" not in data:
+                data["value"] = data["rightOperand"]
+        return data
+
+    @field_validator("operator")
+    @classmethod
+    def validate_operator(cls, v: str) -> str:
+        v_clean = v.strip().lower()
+        allowed = {op.lower() for op in SUPPORTED_CONDITION_OPERATORS}
+        if v_clean not in allowed:
+            raise ValueError(f"Unsupported condition operator '{v}'. Supported: {SUPPORTED_CONDITION_OPERATORS}")
+        return v.strip()
 
     @field_validator("leftOperand")
     @classmethod
@@ -106,10 +161,21 @@ class ConditionNodeConfig(BaseModel):
 
 
 class HumanApprovalNodeConfig(BaseModel):
-    """Configuration for Human Approval Node."""
+    """Configuration for Human Approval Node (Member 4 Execution Engine compatible)."""
     promptMessage: str = "Please review and approve this step to continue."
+    prompt: Optional[str] = None
     timeoutMinutes: int = Field(default=60, ge=1, le=1440)
     defaultAction: Literal["reject", "escalate", "proceed"] = "reject"
+
+    @model_validator(mode="before")
+    @classmethod
+    def sync_prompt_aliases(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "prompt" in data and "promptMessage" not in data:
+                data["promptMessage"] = str(data["prompt"])
+            elif "promptMessage" in data and "prompt" not in data:
+                data["prompt"] = str(data["promptMessage"])
+        return data
 
     @field_validator("promptMessage")
     @classmethod

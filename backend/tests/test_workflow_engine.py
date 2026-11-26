@@ -49,6 +49,10 @@ from app.services.workflow import (
     ExecutionPlanStep,
     ValidationSeverity,
     ValidationCategory,
+    create_simple_execution_workflow,
+    create_conditional_branching_workflow,
+    create_branch_joins_workflow,
+    create_human_approval_workflow,
 )
 
 client = TestClient(app)
@@ -924,3 +928,292 @@ def test_api_workflow_rollback(sample_valid_plan):
     reverted_llm = next(n for n in data["workflow"]["nodes"] if n["id"] == "node_llm_1")
     original_llm = next(n for n in wf_v1.nodes if n.id == "node_llm_1")
     assert reverted_llm["config"]["temperature"] == original_llm.config["temperature"]
+
+
+# ---------------------------------------------------------------------------
+# Extended Audited Tests: Backend Startup, Step Refs, React Flow & Member 4
+# ---------------------------------------------------------------------------
+
+def test_backend_startup_and_health_without_member2():
+    """Verify backend health endpoints work without requiring Member 2 planner."""
+    resp = client.get("/api/v1/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert data["service"] == "AgentForge AI"
+    assert data["details"]["supported_nodes_count"] == 7
+
+
+def test_duplicate_step_identifier_rejection():
+    """Verify generator rejects duplicate plan step IDs with ValueError."""
+    plan = ExecutionPlan(
+        name="Duplicate Step Plan",
+        steps=[
+            ExecutionPlanStep(
+                id="step_dup",
+                title="First Ingestion",
+                component_type="Input",
+            ),
+            ExecutionPlanStep(
+                id="step_dup",
+                title="Second Ingestion",
+                component_type="Input",
+            ),
+        ],
+    )
+    with pytest.raises(ValueError, match="Duplicate step identifier 'step_dup'"):
+        workflow_generator.generate(plan)
+
+
+def test_unresolved_step_reference_rejection():
+    """Verify generator rejects unresolved step references in next_steps and branches."""
+    # 1. Unresolved in next_steps
+    plan_unresolved_next = ExecutionPlan(
+        name="Unresolved Next Plan",
+        steps=[
+            ExecutionPlanStep(
+                id="step_1",
+                title="Input Step",
+                component_type="Input",
+                next_steps=["non_existent_step_target"],
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="Unresolved step reference in next_steps"):
+        workflow_generator.generate(plan_unresolved_next)
+
+    # 2. Unresolved in branch_conditions
+    plan_unresolved_branch = ExecutionPlan(
+        name="Unresolved Branch Plan",
+        steps=[
+            ExecutionPlanStep(
+                id="step_1",
+                title="Condition Step",
+                component_type="Condition",
+                branch_conditions={"true": "ghost_target_step"},
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="Unresolved step reference in branch 'true'"):
+        workflow_generator.generate(plan_unresolved_branch)
+
+
+def test_silently_missing_connections_and_self_loops_prevention():
+    """Verify self-loops are rejected and all explicit references produce edges."""
+    plan_self_loop = ExecutionPlan(
+        name="Self Loop Plan",
+        steps=[
+            ExecutionPlanStep(
+                id="step_loop",
+                title="Self Looping Step",
+                component_type="Input",
+                next_steps=["step_loop"],
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="cannot connect to itself"):
+        workflow_generator.generate(plan_self_loop)
+
+
+def test_stable_node_identifiers_across_edits():
+    """Verify node identifiers are deterministically derived and preserved across edits."""
+    plan = ExecutionPlan(
+        name="Deterministic Stable Plan",
+        steps=[
+            ExecutionPlanStep(
+                id="upload_pdf",
+                title="Upload PDF Document",
+                component_type="Input",
+                next_steps=["summarize_gemini"],
+            ),
+            ExecutionPlanStep(
+                id="summarize_gemini",
+                title="Summarize Document",
+                component_type="LLM",
+                config={"model": "gemini-1.5-pro"},
+                next_steps=["deliver_result"],
+            ),
+            ExecutionPlanStep(
+                id="deliver_result",
+                title="Deliver Markdown Result",
+                component_type="Output",
+            ),
+        ],
+    )
+    wf = workflow_generator.generate(plan)
+    node_ids = [n.id for n in wf.nodes]
+    assert "node_upload_pdf" in node_ids
+    assert "node_summarize_gemini" in node_ids
+    assert "node_deliver_result" in node_ids
+
+    # Modify a node and verify all IDs remain identical
+    patched_wf, diff = workflow_modifier.apply_patch(
+        wf,
+        patch={
+            "update_configs": [
+                {"node_id": "node_summarize_gemini", "config": {"temperature": 0.2}}
+            ]
+        },
+    )
+    patched_node_ids = [n.id for n in patched_wf.nodes]
+    assert patched_node_ids == node_ids
+
+
+def test_edge_handle_mappings_condition_and_approval():
+    """Verify Condition nodes map true/false handles and Human Approval maps approved/rejected handles."""
+    plan = ExecutionPlan(
+        name="Handle Mapping Verification",
+        steps=[
+            ExecutionPlanStep(
+                id="input_step",
+                title="Input Step",
+                component_type="Input",
+                next_steps=["condition_step"],
+            ),
+            ExecutionPlanStep(
+                id="condition_step",
+                title="Gate Condition",
+                component_type="Condition",
+                branch_conditions={
+                    "true": "approval_step",
+                    "false": "output_step",
+                },
+            ),
+            ExecutionPlanStep(
+                id="approval_step",
+                title="Human Approval Gate",
+                component_type="Human Approval",
+                next_steps=["output_step"],
+            ),
+            ExecutionPlanStep(
+                id="output_step",
+                title="Final Output",
+                component_type="Output",
+            ),
+        ],
+    )
+    wf = workflow_generator.generate(plan)
+
+    # Condition edge verification
+    cond_true_edge = next(e for e in wf.edges if e.source == "node_condition_step" and e.target == "node_approval_step")
+    assert cond_true_edge.sourceHandle == "true"
+    assert cond_true_edge.condition == "true"
+    assert cond_true_edge.targetHandle is not None
+
+    cond_false_edge = next(e for e in wf.edges if e.source == "node_condition_step" and e.target == "node_output_step")
+    assert cond_false_edge.sourceHandle == "false"
+    assert cond_false_edge.condition == "false"
+    assert cond_false_edge.targetHandle is not None
+
+    # Approval edge verification
+    approval_edge = next(e for e in wf.edges if e.source == "node_approval_step" and e.target == "node_output_step")
+    assert approval_edge.sourceHandle == "approved"
+    assert approval_edge.targetHandle is not None
+
+
+def test_input_and_output_mappings_preservation():
+    """Verify input and output contracts on plan steps are preserved on generated nodes."""
+    plan = ExecutionPlan(
+        name="Contract Mapping Preservation",
+        steps=[
+            ExecutionPlanStep(
+                id="step_in",
+                title="Data Input",
+                component_type="Input",
+                inputs=[],
+                outputs=["payload", "metadata"],
+                next_steps=["step_out"],
+            ),
+            ExecutionPlanStep(
+                id="step_out",
+                title="Data Output",
+                component_type="Output",
+                inputs=["payload"],
+                outputs=[],
+            ),
+        ],
+    )
+    wf = workflow_generator.generate(plan)
+    in_node = next(n for n in wf.nodes if n.id == "node_step_in")
+    out_node = next(n for n in wf.nodes if n.id == "node_step_out")
+
+    assert in_node.outputHandles == ["payload", "metadata"]
+    assert in_node.config["outputs"] == ["payload", "metadata"]
+    assert out_node.inputHandles == ["payload"]
+    assert out_node.config["inputs"] == ["payload"]
+
+
+def test_validation_rejection_on_invalid_modification(sample_valid_plan):
+    """Verify modifier rejects modifications that produce invalid workflow configurations."""
+    wf = workflow_generator.generate(sample_valid_plan)
+    # Invalid temperature > 1.0
+    with pytest.raises(ValueError):
+        workflow_modifier.update_node_config(
+            wf,
+            node_id="node_llm_1",
+            config_updates={"temperature": 99.9},
+        )
+
+
+def test_history_snapshot_immutability_overwrite_prevention(sample_valid_plan):
+    """Verify WorkflowHistory prevents accidental overwriting of immutable snapshots."""
+    wf = workflow_generator.generate(sample_valid_plan)
+    wf.version = "1.0.0"
+
+    history = WorkflowHistory()
+    history.save_version(wf)
+
+    # Attempting to re-save the exact same version without permission raises ValueError
+    with pytest.raises(ValueError, match="already exists in history"):
+        history.save_version(wf)
+
+
+def test_react_flow_bidirectional_conversion(sample_valid_plan):
+    """Verify roundtrip conversion between canonical workflow and React Flow formats."""
+    wf = workflow_generator.generate(sample_valid_plan)
+
+    # To React Flow
+    rf_data = workflow_generator.to_react_flow(wf)
+    assert "nodes" in rf_data
+    assert "edges" in rf_data
+    assert len(rf_data["nodes"]) == len(wf.nodes)
+    for rf_node in rf_data["nodes"]:
+        assert rf_node["type"] == "custom"
+        assert "componentType" in rf_node["data"]
+        assert "label" in rf_node["data"]
+
+    # From React Flow
+    reconstructed_wf = workflow_generator.from_react_flow(rf_data, name=wf.name)
+    assert reconstructed_wf.name == wf.name
+    assert len(reconstructed_wf.nodes) == len(wf.nodes)
+    assert len(reconstructed_wf.edges) == len(wf.edges)
+
+    # API endpoints integration
+    resp_to_rf = client.post("/api/v1/workflows/to-react-flow", json=wf.model_dump())
+    assert resp_to_rf.status_code == 200
+    assert len(resp_to_rf.json()["nodes"]) == len(wf.nodes)
+
+    resp_from_rf = client.post("/api/v1/workflows/from-react-flow", json=resp_to_rf.json())
+    assert resp_from_rf.status_code == 200
+    assert resp_from_rf.json()["name"] == wf.name
+
+
+def test_member4_shared_fixtures_compatibility():
+    """Verify all 4 shared Member 3 / Member 4 fixtures are valid and exposed via API."""
+    f1 = create_simple_execution_workflow()
+    f2 = create_conditional_branching_workflow()
+    f3 = create_branch_joins_workflow()
+    f4 = create_human_approval_workflow()
+
+    for f in (f1, f2, f3, f4):
+        val = workflow_validator.validate(f)
+        assert val.is_valid is True, f"Fixture '{f.name}' failed validation: {val.summary()}"
+
+    # Verify API fixtures endpoint
+    resp = client.get("/api/v1/workflows/fixtures")
+    assert resp.status_code == 200
+    fixtures_data = resp.json()
+    assert "simple_execution" in fixtures_data
+    assert "conditional_branching" in fixtures_data
+    assert "branch_joins" in fixtures_data
+    assert "human_approval" in fixtures_data
