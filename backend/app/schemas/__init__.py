@@ -10,6 +10,15 @@ from .workflow import (
     WorkflowCreate,
     WorkflowRead,
 )
+from .execution import (
+    ExecutionStatus,
+    TokenUsage,
+    NodeExecutionLog,
+    ExecutionMetrics,
+    WorkflowExecuteRequest,
+    ApprovalActionRequest,
+    ExecutionReportResponse,
+)
 
 __all__ = [
     "HealthCheckResponse",
@@ -21,5 +30,12 @@ __all__ = [
     "WorkflowBase",
     "WorkflowCreate",
     "WorkflowRead",
+    "ExecutionStatus",
+    "TokenUsage",
+    "NodeExecutionLog",
+    "ExecutionMetrics",
+    "WorkflowExecuteRequest",
+    "ApprovalActionRequest",
+    "ExecutionReportResponse",
 ]
 

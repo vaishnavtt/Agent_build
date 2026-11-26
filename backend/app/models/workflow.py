@@ -44,7 +44,13 @@ class WorkflowExecutionModel(Base):
     input_payload = Column(JSON, nullable=True)
     output_result = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
+    failed_node_id = Column(String(100), nullable=True)
     repair_attempts = Column(Integer, default=0, nullable=False)
+
+    # Runtime trace, execution logs, and performance metrics
+    logs = Column(JSON, nullable=True, default=list)
+    metrics = Column(JSON, nullable=True, default=dict)
+    execution_context = Column(JSON, nullable=True)  # Checkpoint state for pause and resume
 
     started_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)

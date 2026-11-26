@@ -8,10 +8,13 @@ from app.database.session import engine
 from app.api.v1.router import api_v1_router
 
 
+# Create SQLite database tables if they do not exist
+Base.metadata.create_all(bind=engine)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle events: initialize SQLite tables on startup."""
-    # Create SQLite database tables if they do not exist
     Base.metadata.create_all(bind=engine)
     yield
 
