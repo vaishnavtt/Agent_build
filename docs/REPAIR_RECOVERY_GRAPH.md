@@ -4,7 +4,7 @@ See [Member 6 implementation and team handoff](MEMBER6_IMPLEMENTATION.md) for
 the API, production readiness, and durable reservation adapter.
 
 Phase 5 compiles a LangGraph `StateGraph` for one recovery invocation. It calls
-the existing deterministic-first diagnosis router and scalar repair planner.
+the existing deterministic-first diagnosis router and scalar or named-connection repair planner.
 Snapshot, verification, promotion, rollback, and recording adapters are injected.
 The graph tests use the real LangGraph runtime with test-only adapters. There is
 no production checkpointer or active-revision store in this phase.
@@ -61,10 +61,9 @@ attempt record, before application. Application failures, invalid verification
 evidence, and confirmed verification failures consume that attempt. Only a
 confirmed verification failure can return to planning. The next proposal must
 offer a different trusted value for the same field on the original snapshot.
-Changing provenance alone cannot trigger another application of a rejected value.
+Graph plans compare the complete candidate digest across attempts. Changing provenance alone cannot trigger another application of a rejected value.
 The graph shares `MAX_AUTOMATIC_REPAIR_ATTEMPTS` with the repair contracts and
-also imposes a 32-step LangGraph recursion limit. Durable attempt limits across
-requests, concurrent workers, and restarts require Phase 6 persistence.
+also imposes a 32-step LangGraph recursion limit. Durable attempt limits across requests, concurrent workers, and restarts require the Member 1 persistence adapter.
 
 ## Verification and revision adapters
 
@@ -117,3 +116,11 @@ replacement policy, and Members 4 and 5 supply authoritative candidate execution
 immutable test baselines, and real rerun evidence. The production verifier must
 run candidates in isolation and bind every check to the candidate and baseline.
 Neither Gemini advice nor a candidate file is verification evidence.
+
+## Named connections and stored results
+
+The graph accepts only deterministic diagnoses on the connection path. A missing graph authority leads to human review. Planning compares the expected failed graph to a verified working revision, reversing the permitted difference for the whole-document comparison. After reservation, application reads the authority again, rebuilds a detached candidate and checks its digest against that working document. The graph uses the same attempt counter and verification, promotion and rollback gates as scalar recovery.
+
+When the host supplies `Member5StructuralValidation`, the coordinator calls the published validator on the exact serialized candidate before candidate execution. A confirmed structural failure consumes the reserved attempt. A missing or inconsistent response stops verification. A passing structural report still requires the original baseline, distinct execution and complete rerun evidence.
+
+The recorder writes terminal events through Member 1. The history reader independently authorizes each scope, bounds retrieval, checks revision associations and verifies the available terminal evidence before presentation. The public API has no fixture fallback. See [completion evidence](MEMBER6_COMPLETION.md).

@@ -16,7 +16,7 @@ flowchart TD
     Evidence --> Diagnose[Deterministic diagnosis]
     Diagnose -->|Eligible unknown failure| Advisory[Gemini advisory]
     Advisory --> Report[Human review or unresolved report]
-    Diagnose -->|Deterministic repair eligibility| Plan[Trusted scalar repair proposal]
+    Diagnose -->|Deterministic repair eligibility| Plan[Authorized scalar, connection or named port restoration]
     Plan --> Claim[Reserve attempt before application]
     Claim --> Candidate[Isolated candidate]
     Candidate --> Verify[Revision-bound validation, execution, and reruns]
@@ -39,11 +39,8 @@ graph with fixture adapters. The public API has no fixture fallback.
 - **Gemini** receives only allowlisted facts for eligible unknown failures.
   Known failures and contradictory context stay local. Gemini's structured
   hypothesis is advisory and cannot authorize changes or supply replacement data.
-- **Planning** supports one operation, restoring a required scalar setting from
-  an authenticated working revision. Empty required instructions qualify only
-  under an approved exact field policy. Filling in invented prompts, restoring
-  nonmissing values, editing protected fields, and repairing edges or mappings
-  are outside the supported policy.
+- **Scalar planning** restores a required setting from an authenticated working revision under an exact field policy.
+- **Graph planning** supports a previously verified missing edge or the named source/target port on one public Input-to-Output transfer. The server must supply an explicit scope-bound grant and working snapshot. Phase 9 supports only the reviewed named-handle layout. More complex topologies and arbitrary config mappings require human review. See the [policy and release evidence](MEMBER6_COMPLETION.md).
 - **Candidate application** checks workflow, revision, node, field, original
   presence and value, policy, and replacement provenance. It modifies a deep
   copy and checks the complete document diff. The original and its test
@@ -65,6 +62,7 @@ graph with fixture adapters. The public API has no fixture fallback.
 |---|---|---|
 | `GET /api/v1/repair/readiness` | No body | Diagnosis and recovery readiness, two-attempt limit, dependencies, and blockers. |
 | `POST /api/v1/repair/diagnose` | Workflow, revision, and execution run IDs | Deterministic diagnosis or advisory, with a safe explanation. |
+| `GET /api/v1/repair/history` | Workflow, revision, execution run, optional offset and limit | Authorized, bounded stored summaries, or a controlled unavailable response. |
 | `POST /api/v1/repair/recover` | Same three IDs | Synchronous result with candidate references, attempts, verification, promotion or rollback, and recording status. |
 
 ```json
@@ -84,9 +82,7 @@ no-store`. Authorization denial returns `403`, missing evidence `404`, and
 duplicate claims, stale revisions, and exhausted durable budgets `409`.
 Unavailable dependencies or proof return `503`. Safely evaluated business
 outcomes such as human review and confirmed rollback return `200`. The
-synchronous response is the current report delivery path. A persistent report
-lookup route can be added once storage, retention, and read authorization are
-agreed.
+synchronous response is the current report delivery path. History retrieval uses a separate authorized reader. The host supplies a server-issued failed execution to the panel. Without it, the panel displays the unavailable state.
 
 In the Execution Monitor, open **Workflow repair**. The panel shows readiness
 and, when diagnosis is configured, accepts IDs issued by the backend. It shows
@@ -156,6 +152,9 @@ python -m examples.member6_demo
 | C · Candidate regression failed | Identical correction declined and the fixture confirmed rollback. One attempt. |
 | D · Production dependencies absent | Recovery blocked. Zero attempts. |
 | E · Older revision requested | Revision conflict rejected. Zero attempts. |
+| Missing edge and incorrect target port | Both fixture candidates transfer the original sample and a regression input, then receive promotion confirmation. |
+| Graph policy absent | Human review with zero attempts. |
+| Authorized history | The fixture reader returns the recorded outcome for each graph case. |
 
 After separate approval, an optional live check uses only a synthetic output
 shape observation and prints an outcome without printing the response or key.
@@ -166,15 +165,12 @@ python -m examples.member6_gemini_smoke --live
 
 ## Verification and limits
 
-- Backend from `backend/` with isolated in-memory SQLite and cache writes
-  disabled. `python -B -m pytest -q -p no:cacheprovider` passed 255 tests.
+- The published baseline passed 255 backend tests. The expanded suite passed 305 with a disposable file-backed SQLite database.
 - Frontend from `frontend/`. `node --experimental-strip-types --test
-  tests/repairApi.test.mjs` passed 4 tests. `npm run build` passed TypeScript
-  and the Vite build. Browser interaction was outside these checks.
+  tests/repairApi.test.mjs tests/repairHistory.test.mjs` passed 10 tests. TypeScript, Vite and the Chrome fixture passed.
 - An isolated environment imported Google Gen AI SDK 1.75.0 with LangGraph
   1.2.24 and passed `pip check`. Production packages in the project
   environment were preserved. Live Gemini connectivity remains unverified.
 - Production self-healing depends on the adapters above. Demonstration
   promotion and rollback are fixture outcomes. Retry coordination for real
-  duplicate requests needs a durable adapter. The planner still supports only
-  approved missing-scalar restoration.
+  duplicate requests needs a durable adapter. See [completion evidence and production binding inventory](MEMBER6_COMPLETION.md) for the current contracts, checks and integration limits.
