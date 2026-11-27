@@ -4,18 +4,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from app.core.config import settings
 from app.database.base import Base
+from app.database.migrations import ensure_schema_compatibility
 from app.database.session import engine
 from app.api.v1.router import api_v1_router
 
 
-# Create SQLite database tables if they do not exist
+# Create SQLite database tables if they do not exist and upgrade existing main-branch schemas
 Base.metadata.create_all(bind=engine)
+ensure_schema_compatibility(engine)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifecycle events: initialize SQLite tables on startup."""
+    """Lifecycle events: initialize SQLite tables and ensure schema compatibility on startup."""
     Base.metadata.create_all(bind=engine)
+    ensure_schema_compatibility(engine)
     yield
 
 
@@ -46,4 +49,3 @@ app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
 def root():
     """Redirect root to OpenAPI interactive documentation."""
     return RedirectResponse(url="/docs")
-

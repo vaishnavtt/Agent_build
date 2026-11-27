@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from app.engine.handlers.base import BaseNodeHandler
+from app.engine.handlers.base import BaseNodeHandler, get_node_meta
 from app.engine.types import ExecutionContext, ToolExecutionError
 from app.engine.tool_registry import tool_registry
 
@@ -16,9 +16,7 @@ class ToolNodeHandler(BaseNodeHandler):
         incoming_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> Dict[str, Any]:
-        config = node.get("config", {})
-        node_id = node.get("id", "")
-        node_name = node.get("name", "Tool Node")
+        node_id, node_name, config = get_node_meta(node, "Tool Node")
 
         tool_name = config.get("toolName") or config.get("tool") or "web_search"
         tool_name = str(tool_name).strip()

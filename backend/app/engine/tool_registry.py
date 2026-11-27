@@ -1,8 +1,9 @@
 import ast
 import operator as op
 import json
-from typing import Dict, Any, Callable, Awaitable, Optional, List
+from typing import Dict, Any, Callable, Awaitable, List
 import httpx
+from app.engine.security import validate_outbound_url, redact_text
 from app.engine.types import ToolExecutionError
 
 
@@ -33,7 +34,6 @@ def _eval_ast_node(node: ast.AST) -> float:
         if op_type in _SAFE_OPERATORS:
             left = _eval_ast_node(node.left)
             right = _eval_ast_node(node.right)
-            # Guard division by zero
             if op_type in (ast.Div, ast.FloorDiv, ast.Mod) and right == 0:
                 raise ZeroDivisionError("Division by zero in calculation expression")
             return _SAFE_OPERATORS[op_type](left, right)
@@ -95,26 +95,51 @@ async def tool_text_formatter(params: Dict[str, Any], context: Any) -> Dict[str,
 
 
 async def tool_web_search(params: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    """Performs a live web search via DuckDuckGo Instant Answer API (no fabricated results)."""
     query = str(params.get("query", params.get("text", ""))).strip()
     if not query:
         raise ToolExecutionError("Web search requires a non-empty 'query' parameter.")
 
-    # Return structured search results
+    endpoint = validate_outbound_url("https://api.duckduckgo.com/")
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.get(
+                endpoint,
+                params={"q": query, "format": "json", "no_html": "1", "skip_disambig": "1"},
+            )
+            if resp.status_code != 200:
+                raise ToolExecutionError(
+                    f"Web search provider returned HTTP {resp.status_code}."
+                )
+            data = resp.json()
+        except ToolExecutionError:
+            raise
+        except Exception as exc:
+            raise ToolExecutionError(f"Live web search failed for '{query}': {exc}")
+
+    results: List[Dict[str, str]] = []
+    if data.get("AbstractText"):
+        results.append(
+            {
+                "title": data.get("Heading") or query,
+                "snippet": data["AbstractText"],
+                "url": data.get("AbstractURL") or "",
+            }
+        )
+    for topic in data.get("RelatedTopics", [])[:5]:
+        if isinstance(topic, dict) and topic.get("Text"):
+            results.append(
+                {
+                    "title": topic.get("Text", "")[:80],
+                    "snippet": topic.get("Text", ""),
+                    "url": topic.get("FirstURL", ""),
+                }
+            )
+
     return {
         "query": query,
-        "results": [
-            {
-                "title": f"Market Research & Insights: {query}",
-                "snippet": f"Verified analysis and data points for '{query}' covering industry metrics.",
-                "url": f"https://search.internal/results?q={query.replace(' ', '+')}",
-            },
-            {
-                "title": f"Executive Summary - {query}",
-                "snippet": f"Overview of current best practices, historical records, and findings relating to {query}.",
-                "url": f"https://knowledge.internal/overview?q={query.replace(' ', '+')}",
-            },
-        ],
-        "total_results": 2,
+        "results": results,
+        "total_results": len(results),
         "status": "success",
     }
 
@@ -139,14 +164,24 @@ async def tool_json_parser(params: Dict[str, Any], context: Any) -> Dict[str, An
 
 
 async def tool_http_request(params: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    url = str(params.get("url", params.get("endpoint", ""))).strip()
-    if not url:
+    raw_url = str(params.get("url", params.get("endpoint", ""))).strip()
+    if not raw_url:
         raise ToolExecutionError("HTTP tool requires a valid 'url' or 'endpoint' parameter.")
+
+    url = validate_outbound_url(raw_url)
     method = str(params.get("method", "GET")).upper()
     headers = params.get("headers", {})
     body = params.get("body", params.get("data"))
+    timeout_sec = float(params.get("timeoutSeconds", 15.0))
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
+    # Block mutating external HTTP side effects in isolated candidate mode
+    is_candidate = bool(getattr(context, "variables", {}).get("_candidate_mode"))
+    if is_candidate and method in ("POST", "PUT", "DELETE", "PATCH"):
+        raise ToolExecutionError(
+            f"Mutating HTTP method '{method}' is blocked during isolated candidate execution."
+        )
+
+    async with httpx.AsyncClient(timeout=timeout_sec) as client:
         try:
             if method == "GET":
                 resp = await client.get(url, headers=headers)
@@ -161,8 +196,10 @@ async def tool_http_request(params: Dict[str, Any], context: Any) -> Dict[str, A
                 "headers": dict(resp.headers),
                 "text": resp.text[:2000],
             }
+        except ToolExecutionError:
+            raise
         except Exception as e:
-            raise ToolExecutionError(f"HTTP request to {url} failed: {str(e)}")
+            raise ToolExecutionError(redact_text(f"HTTP request to {url} failed: {str(e)}"))
 
 
 class PredefinedToolRegistry:
@@ -170,7 +207,6 @@ class PredefinedToolRegistry:
 
     def __init__(self):
         self._tools: Dict[str, Dict[str, Any]] = {}
-        # Register standard approved tools
         self.register(
             "calculator",
             "Safe arithmetic expression evaluator without code execution.",
@@ -183,7 +219,7 @@ class PredefinedToolRegistry:
         )
         self.register(
             "web_search",
-            "Structured web search and knowledge retrieval.",
+            "Live web search via DuckDuckGo Instant Answer API.",
             tool_web_search,
         )
         self.register(
@@ -193,7 +229,7 @@ class PredefinedToolRegistry:
         )
         self.register(
             "http_request",
-            "Safe external HTTP request dispatcher.",
+            "Safe external HTTP request dispatcher with SSRF protection.",
             tool_http_request,
         )
 

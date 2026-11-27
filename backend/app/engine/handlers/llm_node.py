@@ -2,7 +2,8 @@ import json
 from typing import Dict, Any
 import httpx
 from app.core.config import settings
-from app.engine.handlers.base import BaseNodeHandler
+from app.engine.handlers.base import BaseNodeHandler, get_node_meta
+from app.engine.security import redact_text
 from app.engine.types import ExecutionContext, NodeExecutionError, GeminiConfigError
 from app.schemas.execution import TokenUsage
 
@@ -19,13 +20,13 @@ class LLMNodeHandler(BaseNodeHandler):
         incoming_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> Dict[str, Any]:
-        config = node.get("config", {})
-        node_id = node.get("id", "")
-        node_name = node.get("name", "LLM Node")
+        node_id, node_name, config = get_node_meta(node, "LLM Node")
 
         model = config.get("model", settings.GEMINI_DEFAULT_MODEL) or "gemini-1.5-pro"
         system_prompt = config.get("systemPrompt", "You are a helpful and precise assistant.")
         temperature = float(config.get("temperature", 0.7))
+        max_output_tokens = config.get("maxOutputTokens")
+        response_format = str(config.get("responseFormat", "text")).lower()
         instructions = config.get("instructions") or config.get("prompt", "")
 
         # API key verification
@@ -58,16 +59,20 @@ class LLMNodeHandler(BaseNodeHandler):
             full_user_prompt = "Process the provided workflow context."
 
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {
+        gen_config: Dict[str, Any] = {"temperature": temperature}
+        if max_output_tokens is not None:
+            gen_config["maxOutputTokens"] = int(max_output_tokens)
+        if response_format == "json_object":
+            gen_config["responseMimeType"] = "application/json"
+
+        payload: Dict[str, Any] = {
             "contents": [
                 {
                     "role": "user",
                     "parts": [{"text": full_user_prompt}],
                 }
             ],
-            "generationConfig": {
-                "temperature": temperature,
-            },
+            "generationConfig": gen_config,
         }
         if system_prompt:
             payload["systemInstruction"] = {
@@ -84,7 +89,7 @@ class LLMNodeHandler(BaseNodeHandler):
                 )
             except Exception as e:
                 raise NodeExecutionError(
-                    f"Network error communicating with Gemini API: {str(e)}",
+                    redact_text(f"Network error communicating with Gemini API: {str(e)}"),
                     node_id=node_id,
                 )
 
@@ -98,7 +103,7 @@ class LLMNodeHandler(BaseNodeHandler):
             except Exception:
                 pass
             raise NodeExecutionError(
-                f"Gemini API error ({resp.status_code}) on node '{node_name}': {error_detail}",
+                redact_text(f"Gemini API error ({resp.status_code}) on node '{node_name}': {error_detail}"),
                 node_id=node_id,
             )
 

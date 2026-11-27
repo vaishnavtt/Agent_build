@@ -34,24 +34,27 @@ class WorkflowModel(Base):
 
 
 class WorkflowExecutionModel(Base):
-    """SQLAlchemy model tracking runtime execution records and self-repair attempts."""
+    """SQLAlchemy model tracking runtime execution records, checkpoints, and self-repair attempts."""
 
     __tablename__ = "workflow_executions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     workflow_id = Column(String(36), nullable=False, index=True)
-    status = Column(String(30), default="PENDING", nullable=False, index=True)  # PENDING, RUNNING, COMPLETED, FAILED, REPAIRED
+    workflow_revision_id = Column(String(64), nullable=True, index=True)
+    owner_id = Column(String(100), nullable=True, index=True)
+    is_candidate = Column(Boolean, default=False, nullable=False, index=True)
+    status = Column(String(30), default="PENDING", nullable=False, index=True)
     input_payload = Column(JSON, nullable=True)
     output_result = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
     failed_node_id = Column(String(100), nullable=True)
     repair_attempts = Column(Integer, default=0, nullable=False)
 
-    # Runtime trace, execution logs, and performance metrics
+    # Runtime trace, execution logs, performance metrics, and immutable snapshot/checkpoint
     logs = Column(JSON, nullable=True, default=list)
     metrics = Column(JSON, nullable=True, default=dict)
-    execution_context = Column(JSON, nullable=True)  # Checkpoint state for pause and resume
+    execution_context = Column(JSON, nullable=True)
+    workflow_snapshot = Column(JSON, nullable=True)
 
     started_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
-

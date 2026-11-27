@@ -1,14 +1,14 @@
-import os
 import io
 import base64
 from typing import Dict, Any, List
 import pypdf
-from app.engine.handlers.base import BaseNodeHandler
+from app.engine.handlers.base import BaseNodeHandler, get_node_meta
+from app.engine.security import validate_document_path
 from app.engine.types import ExecutionContext, NodeExecutionError
 
 
 class DocumentReaderNodeHandler(BaseNodeHandler):
-    """Extracts text, metadata, and chunked sections from PDF documents."""
+    """Extracts text, metadata, and chunked sections from PDF and text documents."""
 
     def __init__(self):
         super().__init__("Document Reader")
@@ -19,9 +19,7 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
         incoming_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> Dict[str, Any]:
-        config = node.get("config", {})
-        node_id = node.get("id", "")
-        node_name = node.get("name", "Document Reader")
+        node_id, node_name, config = get_node_meta(node, "Document Reader")
 
         chunk_size = int(config.get("chunkSize", 1000))
         chunk_overlap = int(config.get("chunkOverlap", 200))
@@ -37,11 +35,12 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
         )
 
         pdf_bytes = None
+        plain_text = None
 
         if isinstance(file_source, bytes):
             pdf_bytes = file_source
         elif isinstance(file_source, str) and file_source.startswith("data:application/pdf;base64,"):
-            b64_data = file_source.split("base64,")[1]
+            b64_data = file_source.split("base64,", 1)[1]
             try:
                 pdf_bytes = base64.b64decode(b64_data)
             except Exception as e:
@@ -50,20 +49,18 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
                     node_id=node_id,
                 )
         elif isinstance(file_source, str) and file_source.strip():
-            file_path = file_source.strip()
-            if not os.path.exists(file_path):
-                raise NodeExecutionError(
-                    f"PDF document not found at '{file_path}' in node '{node_name}'.",
-                    node_id=node_id,
-                )
+            safe_path = validate_document_path(file_source.strip(), node_id=node_id, node_name=node_name)
             try:
-                with open(file_path, "rb") as f:
-                    pdf_bytes = f.read()
+                raw_bytes = safe_path.read_bytes()
             except Exception as e:
                 raise NodeExecutionError(
-                    f"Failed reading file at '{file_path}': {str(e)}",
+                    f"Failed reading file at '{safe_path.name}': {str(e)}",
                     node_id=node_id,
                 )
+            if safe_path.suffix.lower() in (".txt", ".md", ".json", ".csv"):
+                plain_text = raw_bytes.decode("utf-8", errors="replace")
+            else:
+                pdf_bytes = raw_bytes
         else:
             # Check if text was passed directly
             direct_text = incoming_data.get("content") or incoming_data.get("text")
@@ -80,6 +77,17 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
                 f"No PDF file path or content provided to Document Reader node '{node_name}'.",
                 node_id=node_id,
             )
+
+        if plain_text is not None:
+            chunks = self._chunk_text(plain_text, chunk_size, chunk_overlap)
+            return {
+                "content": plain_text,
+                "text": plain_text,
+                "output": plain_text,
+                "pages": 1,
+                "chunks": chunks,
+                "metadata": {"source": "text_file"},
+            }
 
         if not pdf_bytes or len(pdf_bytes) == 0:
             raise NodeExecutionError(
@@ -112,14 +120,7 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
                 extracted_pages.append(f"[Page {i+1} extraction failed: {str(e)}]")
 
         full_text = "\n\n".join(extracted_pages).strip()
-
-        # Create overlapping chunks
-        chunks: List[str] = []
-        if full_text:
-            step = max(1, chunk_size - chunk_overlap)
-            for i in range(0, len(full_text), step):
-                chunk = full_text[i : i + chunk_size]
-                chunks.append(chunk)
+        chunks = self._chunk_text(full_text, chunk_size, chunk_overlap)
 
         metadata_dict = {}
         if reader.metadata:
@@ -134,3 +135,11 @@ class DocumentReaderNodeHandler(BaseNodeHandler):
             "chunks": chunks,
             "metadata": metadata_dict,
         }
+
+    def _chunk_text(self, full_text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
+        chunks: List[str] = []
+        if full_text:
+            step = max(1, chunk_size - chunk_overlap)
+            for i in range(0, len(full_text), step):
+                chunks.append(full_text[i : i + chunk_size])
+        return chunks

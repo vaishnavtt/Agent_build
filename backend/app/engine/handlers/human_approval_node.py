@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from app.engine.handlers.base import BaseNodeHandler
+from app.engine.handlers.base import BaseNodeHandler, get_node_meta
 from app.engine.types import ExecutionContext, HumanApprovalRequired, NodeExecutionError
 
 
@@ -15,8 +15,7 @@ class HumanApprovalNodeHandler(BaseNodeHandler):
         incoming_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> Dict[str, Any]:
-        node_id = node.get("id", "")
-        node_name = node.get("name", "Human Approval")
+        node_id, node_name, config = get_node_meta(node, "Human Approval")
 
         approved_nodes = context.variables.get("_approved_nodes", {})
         rejected_nodes = context.variables.get("_rejected_nodes", {})
@@ -42,7 +41,7 @@ class HumanApprovalNodeHandler(BaseNodeHandler):
             )
 
         # Neither approved nor rejected yet: pause execution
-        prompt_message = node.get("config", {}).get(
+        prompt_message = config.get(
             "prompt", f"Sign-off required for workflow step '{node_name}'."
         )
         raise HumanApprovalRequired(node_id=node_id, message=prompt_message)

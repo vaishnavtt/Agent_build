@@ -1,6 +1,5 @@
-import json
 from typing import Dict, Any
-from app.engine.handlers.base import BaseNodeHandler
+from app.engine.handlers.base import BaseNodeHandler, get_node_meta
 from app.engine.types import ExecutionContext
 
 
@@ -16,8 +15,8 @@ class OutputNodeHandler(BaseNodeHandler):
         incoming_data: Dict[str, Any],
         context: ExecutionContext,
     ) -> Dict[str, Any]:
-        config = node.get("config", {})
-        output_format = config.get("outputFormat", "json").lower()
+        _, _, config = get_node_meta(node, "Output")
+        output_format = str(config.get("outputFormat", "json")).lower()
 
         primary_result = (
             incoming_data.get("output")
@@ -33,7 +32,6 @@ class OutputNodeHandler(BaseNodeHandler):
         elif output_format == "markdown":
             formatted_result = f"### Workflow Result\n\n{primary_result}"
         else:
-            # json or dictionary
             formatted_result = primary_result
 
         return {

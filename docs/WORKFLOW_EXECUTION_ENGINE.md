@@ -2,16 +2,18 @@
 
 ## 1. Executive Summary
 
-This document details the architecture, implementation, node handlers, execution state management, performance monitoring, and FastAPI endpoints for the **Workflow Execution Engine** (Member 4) inside AgentForge AI.
+This document details the architecture, implementation, node handlers, execution state management, security boundaries, performance monitoring, team integration adapters, and FastAPI endpoints for the **Workflow Execution Engine** (Member 4) inside AgentForge AI.
 
 The execution engine translates visual directed workflow graphs into deterministic, asynchronous execution pipelines, handling:
-- Multi-node dependency resolution and topological ordering.
-- Cycle detection using Kahn's algorithm.
-- Data passing across connected input/output handles.
-- Conditional branching with automatic pruning of untaken paths.
-- Asynchronous Human-in-the-Loop approval gates with state checkpointing and resuming.
-- High-precision performance monitoring tracking node durations, total execution time, AI provider API call counts, and token usage.
-- Structured execution logging with sensitive data redaction.
+- Multi-node dependency resolution and topological ordering using Kahn's algorithm.
+- Cycle detection raising `CycleDetectedError`.
+- Data passing across connected input/output handles with dictionary key merging.
+- Conditional branching with automatic pruning of untaken paths while preserving diamond/convergent joins.
+- Asynchronous Human-in-the-Loop approval gates with immutable workflow snapshotting, checkpointing, and resume/reject/cancel lifecycle.
+- Prevention of concurrent or duplicate approval actions via atomic status claims.
+- High-precision performance monitoring tracking cumulative durations, per-node latency, external API call counts, and token usage.
+- Strict security controls: path traversal blocking, allowlisted document roots, outbound HTTP SSRF filtering (blocking loopback, private ranges, metadata IPs), and sensitive field redaction.
+- Decoupled integration adapters for Member 3 (visual graph schemas), Member 5 (Reliability Lab `IWorkflowExecutor`), and Member 6 (Self-Repair failure evidence & isolated candidate execution).
 
 ---
 
@@ -21,11 +23,13 @@ The execution engine translates visual directed workflow graphs into determinist
 +-------------------------------------------------------------------------------+
 |                      STAGE 1: RECEIVE WORKFLOW & INPUTS                       |
 |   - Ingests workflow JSON topology and initial runtime input payload.         |
+|   - Computes deterministic immutable revision ID (SHA256).                    |
 +-------------------------------------------------------------------------------+
                                        |
                                        v
 +-------------------------------------------------------------------------------+
 |                    STAGE 2: STRUCTURE & SCHEMA VALIDATION                     |
+|   - Normalizes node formats (canonical and React Flow customWorkflow shapes). |
 |   - Verifies node existence, non-empty list, and required properties.         |
 +-------------------------------------------------------------------------------+
                                        |
@@ -52,12 +56,14 @@ The execution engine translates visual directed workflow graphs into determinist
 +-------------------------------------------------------------------------------+
 |                      STAGE 6: DATA TRANSFER & HANDLE MAPPING                  |
 |   - Resolves incoming edges and maps sourceHandles to targetHandles.          |
+|   - Filters out skipped/inactive upstream branch outputs.                     |
 +-------------------------------------------------------------------------------+
                                        |
                                        v
 +-------------------------------------------------------------------------------+
 |                    STAGE 7: CONDITIONAL BRANCHING & PRUNING                   |
-|   - Evaluates condition operator; prunes untaken branch downstream nodes.     |
+|   - Evaluates condition operator; prunes untaken paths.                       |
+|   - Preserves convergent diamond join nodes reachable via active paths.       |
 +-------------------------------------------------------------------------------+
                                        |
                                        v
@@ -69,7 +75,7 @@ The execution engine translates visual directed workflow graphs into determinist
                                        v
 +-------------------------------------------------------------------------------+
 |                      STAGE 9: STRUCTURED LOGGING & AUDIT                      |
-|   - Records node IDs, timestamps, input/output summaries, errors, and tokens. |
+|   - Records node IDs, timestamps, redacted inputs/outputs, and tokens.        |
 +-------------------------------------------------------------------------------+
                                        |
                                        v
@@ -87,106 +93,101 @@ The execution engine provides dedicated handlers for all 7 canonical workflow co
 
 | Node Type | Canonical / Aliases | Handler Class | Description & Key Features |
 | :--- | :--- | :--- | :--- |
-| **Input** | `Input`, `input` | `InputNodeHandler` | Ingests text, JSON, or files; validates required fields; passes data downstream. |
-| **LLM** | `LLM`, `llm` | `LLMNodeHandler` | Calls Google Gemini API; supports prompt templating; records actual API calls & token metrics (`usageMetadata`). |
-| **Document Reader** | `Document Reader`, `PDF Document Reader`, `PDF Reader` | `DocumentReaderNodeHandler` | Extracts text and metadata from PDF files using `pypdf`; supports chunking and overlap; guards corrupted files. |
-| **Tool** | `Tool`, `Predefined Tool`, `tool` | `ToolNodeHandler` | Invokes registered, safe tools from `PredefinedToolRegistry` (Calculator, Text Formatter, Web Search, JSON Parser, HTTP Client). Strictly rejects `eval`/`exec`. |
-| **Condition** | `Condition`, `condition` | `ConditionNodeHandler` | Evaluates safe comparison operators (`==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `is_empty`, etc.); routes execution to `true` or `false` branch. |
-| **Human Approval** | `Human Approval`, `human approval` | `HumanApprovalNodeHandler` | Pauses execution with `WAITING_FOR_APPROVAL`; checkpoints execution state in database; resumes on approval; terminates on rejection. |
+| **Input** | `Input`, `input` | `InputNodeHandler` | Ingests text, JSON, or files; validates required fields; parses JSON payloads when configured; passes data downstream. |
+| **LLM** | `LLM`, `llm` | `LLMNodeHandler` | Calls Google Gemini API; supports prompt templating; handles `maxOutputTokens` and `responseFormat`; records API calls & token metrics (`usageMetadata`). |
+| **Document Reader** | `Document Reader`, `PDF Document Reader`, `PDF Reader` | `DocumentReaderNodeHandler` | Extracts text and metadata from PDF files using `pypdf` and plain text/markdown; enforces chunking, overlap, and strict path traversal validation. |
+| **Tool** | `Tool`, `Predefined Tool`, `tool` | `ToolNodeHandler` | Invokes registered, safe tools from `PredefinedToolRegistry` (Calculator via AST, Text Formatter, Web Search via DuckDuckGo, JSON Parser, HTTP Client with SSRF filter). Strictly rejects `eval`/`exec`. |
+| **Condition** | `Condition`, `condition` | `ConditionNodeHandler` | Evaluates safe comparison operators (`==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `ends_with`, `is_empty`, `is_not_empty`, `is_true`, `is_false`, `regex`, dotted dictionary path access); routes execution to `true` or `false` branch. |
+| **Human Approval** | `Human Approval`, `human approval` | `HumanApprovalNodeHandler` | Pauses execution with `WAITING_FOR_APPROVAL`; checkpoints execution state in database; resumes on approval; terminates on rejection; stores approver comment and data. |
 | **Output** | `Output`, `output` | `OutputNodeHandler` | Terminal step collecting upstream outputs and returning structured JSON, Markdown, or raw text. |
 
 ---
 
-## 4. Execution State Machine
+## 4. Execution State Machine & Lifecycle
 
-Workflows transition through the following strictly managed states:
+The execution lifecycle transitions through deterministic states:
 
-- `PENDING`: Initial queued state prior to runner initialization.
-- `RUNNING`: Workflow currently executing active nodes.
-- `SUCCESS`: All required nodes completed without error.
-- `FAILED`: An individual node raised an unhandled error; downstream nodes marked `SKIPPED`.
-- `WAITING_FOR_APPROVAL`: Execution paused awaiting human sign-off; state checkpointed.
-- `APPROVED`: Human approver accepted the waiting step; execution resumes from that step.
-- `REJECTED`: Human approver denied the waiting step; workflow marked `REJECTED`.
-- `SKIPPED`: Node bypassed due to untaken conditional branch or preceding failure.
-- `CANCELLED`: Execution manually terminated.
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Initialized
+    PENDING --> RUNNING: Engine Invocation
+    RUNNING --> WAITING_FOR_APPROVAL: Human Approval Step
+    WAITING_FOR_APPROVAL --> RUNNING: Approved (Claimed)
+    WAITING_FOR_APPROVAL --> REJECTED: Rejected
+    WAITING_FOR_APPROVAL --> CANCELLED: Cancelled
+    RUNNING --> SUCCESS: All Nodes Completed
+    RUNNING --> FAILED: Execution Error / Timeout
+    SUCCESS --> [*]
+    FAILED --> [*]
+    REJECTED --> [*]
+    CANCELLED --> [*]
+```
 
----
-
-## 5. Performance Monitoring & Metrics
-
-The `ExecutionPerformanceMonitor` provides real-time, non-simulated runtime metrics:
-
-1. **Individual Node Execution Duration**: Precise execution duration in milliseconds for every step.
-2. **Total Workflow Duration**: Total wall-clock runtime in milliseconds.
-3. **Actual AI API Calls**: Total real calls dispatched to external LLM providers.
-4. **Actual Token Usage**: Extracted directly from Google Gemini provider responses (`promptTokenCount`, `candidatesTokenCount`, `totalTokenCount`).
-5. **Execution Overhead on Repair**: Measures latency delta when executing self-repaired workflows.
+- **Atomic Approval Claiming**: Transitioning from `WAITING_FOR_APPROVAL` to `RUNNING` uses an atomic SQL UPDATE matching `status == 'WAITING_FOR_APPROVAL'`. If a duplicate or concurrent request arrives, it receives `HTTP 409 Conflict`.
+- **Ad Hoc Workflow Snapshots**: When executing ad-hoc workflows via `POST /api/v1/executions/run`, the full workflow graph is snapshot-persisted alongside the execution context. When resumed via `POST /api/v1/executions/{id}/approve`, the engine loads the snapshot and resumes without requiring saved workflow IDs.
 
 ---
 
-## 6. FastAPI Endpoints
+## 5. Security & Safety Controls
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/v1/workflows` | Persist a new visual workflow graph. |
-| `GET` | `/api/v1/workflows` | List workflows with pagination (`skip`, `limit`). |
-| `GET` | `/api/v1/workflows/{id}` | Retrieve workflow definition by ID. |
-| `POST` | `/api/v1/workflows/{id}/execute` | Execute a stored workflow by ID with input parameters. |
-| `POST` | `/api/v1/executions/run` | Execute an ad-hoc workflow definition directly without saving. |
-| `GET` | `/api/v1/executions/{id}` | Retrieve execution status, output, metrics, and error info. |
-| `GET` | `/api/v1/executions/{id}/logs` | Retrieve structured node-level execution trace logs. |
-| `POST` | `/api/v1/executions/{id}/approve` | Approve a paused execution and resume downstream steps. |
-| `POST` | `/api/v1/executions/{id}/reject` | Reject a paused execution and mark status as `REJECTED`. |
+1. **Path Traversal Prevention**: `validate_document_path` checks for directory traversal (`..`), null bytes, verifies file extension allowlist (`.pdf`, `.txt`, `.md`, `.json`, `.csv`), and restricts file access to configured `ALLOWED_DOCUMENT_DIRS` or `./uploads`.
+2. **SSRF Outbound Protection**: `validate_outbound_url` resolves DNS hostnames and verifies all returned IP addresses against private (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), link-local (`169.254.0.0/16`), and internal multicast ranges. Requests to internal/cloud metadata services are strictly blocked.
+3. **Sensitive Field Redaction**: `redact_sensitive_data` scrubs keys containing `key`, `secret`, `token`, `password`, `authorization`, `cookie`, or `apikey`, replacing values with `[REDACTED]`. URLs in logs and errors have sensitive query parameters scrubbed via regex.
+4. **Execution Ownership**: `_check_execution_ownership` scopes retrieval and approval operations to the matching authenticated actor (`X-User-Id` or Bearer token).
+5. **Candidate Mode Isolation**: Candidate workflows run with `_candidate_mode = True`, which blocks mutating external HTTP methods (`POST`, `PUT`, `DELETE`, `PATCH`) and prevents altering production database records.
 
 ---
 
-## 7. Inter-Member Integration Matrix
+## 6. Team Integration Contracts
 
-- **Member 1 (Backend & Database)**:
-  - Extended `WorkflowExecutionModel` to store structured `logs`, `metrics`, `failed_node_id`, and `execution_context`.
-  - Integrated with `ExecutionService` and SQLite database sessions.
-- **Member 2 (AI Requirement Analysis)**:
-  - Consumes workflows synthesized from user requirements.
-  - LLM node handles Gemini rate limits, timeouts, and quota errors.
-- **Member 3 (Workflow Generation)**:
-  - Adheres strictly to `shared/workflow.schema.json` and `shared/node_definitions.json`.
-  - Maps `sourceHandle` / `targetHandle` on edges for precision data passing.
-- **Member 5 (Validation & Automated Testing)**:
-  - Exposes `NodeExecutionLog` and `ExecutionMetrics` for reliability scoring.
-  - Supports testing normal, edge-case, and boundary scenarios.
-- **Member 6 (Failure Diagnosis & Self-Repair)**:
-  - Flags exact `failed_node_id`, error messages, and execution traces.
-  - Supports controlled re-execution with `reexecution=True` tracking repair overhead.
+### Member 3 (Workflow Generation & Schemas)
+- Supports both canonical node definitions and React Flow custom shapes (`type: "customWorkflow"`, `data.componentType`, `data.label`, `data.config`).
+- Tested against Member 3 fixtures: simple execution, conditional diamond branching, and multi-node pipelines.
+
+### Member 5 (Reliability Lab)
+- Provides `Member4WorkflowExecutor` implementing `IWorkflowExecutor`:
+  - `execute(workflow_id, input_payload, workflow_override)` returns structured `ExecutionResult` with `status`, `output_data`, `execution_trace`, `duration_ms`, and `metrics`.
+  - Maps internal execution statuses to Member 5 contracts (`COMPLETED`, `FAILED`, `TIMEOUT`, `SAFE_REJECTION`).
+
+### Member 6 (Self-Repair Engine)
+- Provides `Member4RepairIntegrationAdapter`:
+  - `get_failure_evidence(db, workflow_id, workflow_revision_id, execution_run_id)` loads redacted failure logs, error messages, and original workflow topology.
+  - `execute_isolated_candidate(candidate_workflow, inputs, original_duration_ms)` executes deep-copied repair candidate graphs in isolated candidate mode and computes repair latency overhead.
 
 ---
 
-## 8. Test Suite Summary
+## 7. FastAPI Endpoint Reference
 
-The engine is verified via 25 automated Pytest tests across unit, node, graph, and API layers:
+| Method | Endpoint | Description | Auth / Scope |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/workflows` | Persist a new visual workflow graph into SQLite. | Optional in dev |
+| `GET` | `/api/v1/workflows` | List persisted workflows with pagination. | Public / Scoped |
+| `GET` | `/api/v1/workflows/{id}` | Retrieve single workflow topology by ID. | Public / Scoped |
+| `PUT` | `/api/v1/workflows/{id}` | Update workflow configuration, nodes, and edges. | Scoped |
+| `DELETE`| `/api/v1/workflows/{id}` | Soft-delete workflow graph. | Scoped |
+| `POST` | `/api/v1/workflows/validate` | Validate workflow topology, readiness score, and checks. | Public |
+| `POST` | `/api/v1/workflows/{id}/execute` | Execute persisted workflow with immutable snapshot and revision. | Scoped |
+| `GET` | `/api/v1/workflows/{id}/executions` | List executions for a specific workflow. | Scoped |
+| `POST` | `/api/v1/executions/run` | Execute ad-hoc workflow JSON directly without prior persistence. | Scoped |
+| `GET` | `/api/v1/executions` | List non-candidate execution records. | Scoped |
+| `GET` | `/api/v1/executions/{id}` | Retrieve full execution status, outputs, metrics, and errors. | Scoped |
+| `GET` | `/api/v1/executions/{id}/logs` | Retrieve structured node-level execution traces with redacted data. | Scoped |
+| `POST` | `/api/v1/executions/{id}/approve` | Approve paused execution and resume exact workflow revision. | Scoped (Atomic) |
+| `POST` | `/api/v1/executions/{id}/reject` | Reject paused execution with reason and terminate run. | Scoped (Atomic) |
+| `POST` | `/api/v1/executions/{id}/cancel` | Cancel pending or paused execution. | Scoped |
 
-1. `test_simple_input_output_workflow`: Input -> Output data flow.
-2. `test_input_llm_output_workflow_with_mocked_gemini`: Gemini reasoning and response passing.
-3. `test_pdf_reader_workflow`: Text extraction from in-memory PDF.
-4. `test_predefined_tool_execution`: Safe AST-based calculator execution.
-5. `test_condition_true_branch`: Routing through TRUE branch; skipping FALSE.
-6. `test_condition_false_branch`: Routing through FALSE branch; skipping TRUE.
-7. `test_human_approval_waiting_state`: Execution pause and state preservation.
-8. `test_human_approval_and_resume`: Resuming from checkpoint without re-running earlier steps.
-9. `test_human_approval_rejection`: Rejection handling and workflow termination.
-10. `test_missing_input_validation`: Error raised for missing mandatory input.
-11. `test_unsupported_node_type`: Handling and rejection of invalid node types.
-12. `test_invalid_connections`: Validation of edges pointing to non-existent nodes.
-13. `test_cyclic_workflow_detection`: Cycle detection via Kahn's algorithm.
-14. `test_failed_node_execution`: Failure isolation, logging, and status tracking.
-15. `test_multiple_node_data_passing`: Multi-step data pipeline passing text transformations.
-16. `test_execution_logs`: Comprehensive audit logging verification.
-17. `test_node_level_execution_time`: Millisecond duration verification per node.
-18. `test_complete_workflow_execution_time`: Total execution duration validation.
-19. `test_api_call_and_token_usage_capture`: Precision token and API call accounting.
-20. `test_controlled_reexecution_after_repair`: Re-execution and repair overhead tracking.
-21. `test_create_and_execute_workflow_via_api`: Full end-to-end FastAPI workflow execution.
-22. `test_ad_hoc_execution_run_endpoint`: Direct execution API test without prior save.
-23. `test_human_approval_api_flow`: Full API pause, checkpoint, and approval resume flow.
-24. `test_health_check_endpoint`: System health and SQLite database verification.
-25. `test_root_redirects_to_docs`: OpenAPI documentation redirect check.
+---
+
+## 8. Verification & Test Evidence
+
+All 37 unit and integration tests execute and pass:
+```
+backend/.venv/Scripts/python.exe -m pytest -v
+======================== 37 passed, 1 warning in 3.15s ========================
+```
+
+Frontend production build verifies TypeScript typing and bundle generation:
+```
+npm run build
+✓ built in 21.80s
+```

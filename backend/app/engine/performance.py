@@ -1,26 +1,39 @@
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 from app.schemas.execution import ExecutionMetrics, TokenUsage, ExecutionStatus
 
 
 class ExecutionPerformanceMonitor:
     """Tracks precision execution timings, API calls, token counts, and re-execution overhead."""
 
-    def __init__(self, execution_id: str, workflow_id: Optional[str] = None):
+    def __init__(
+        self,
+        execution_id: str,
+        workflow_id: Optional[str] = None,
+        prior_duration_ms: float = 0.0,
+        prior_node_durations: Optional[Dict[str, float]] = None,
+        prior_api_calls: int = 0,
+        prior_token_usage: Optional[TokenUsage] = None,
+        prior_nodes_executed: int = 0,
+        prior_nodes_skipped: int = 0,
+        prior_nodes_failed: int = 0,
+        prior_failed_node_id: Optional[str] = None,
+    ):
         self.execution_id = execution_id
         self.workflow_id = workflow_id
         self._start_perf: float = time.perf_counter()
+        self._prior_duration_ms: float = prior_duration_ms
         self._node_start_times: Dict[str, float] = {}
-        self.node_durations_ms: Dict[str, float] = {}
-        self.total_api_calls: int = 0
-        self.prompt_tokens: int = 0
-        self.completion_tokens: int = 0
-        self.total_tokens: int = 0
-        self.has_tokens: bool = False
-        self.nodes_executed: int = 0
-        self.nodes_skipped: int = 0
-        self.nodes_failed: int = 0
-        self.failed_node_id: Optional[str] = None
+        self.node_durations_ms: Dict[str, float] = dict(prior_node_durations or {})
+        self.total_api_calls: int = prior_api_calls
+        self.prompt_tokens: int = prior_token_usage.prompt_tokens if prior_token_usage else 0
+        self.completion_tokens: int = prior_token_usage.completion_tokens if prior_token_usage else 0
+        self.total_tokens: int = prior_token_usage.total_tokens if prior_token_usage else 0
+        self.has_tokens: bool = bool(prior_token_usage and prior_token_usage.total_tokens > 0)
+        self.nodes_executed: int = prior_nodes_executed
+        self.nodes_skipped: int = prior_nodes_skipped
+        self.nodes_failed: int = prior_nodes_failed
+        self.failed_node_id: Optional[str] = prior_failed_node_id
         self.reexecution_overhead_ms: Optional[float] = None
 
     def start_node(self, node_id: str) -> None:
@@ -55,10 +68,11 @@ class ExecutionPerformanceMonitor:
         return duration_ms
 
     def record_reexecution_overhead(self, overhead_ms: float) -> None:
-        self.reexecution_overhead_ms = round(overhead_ms, 2)
+        self.reexecution_overhead_ms = round(max(0.0, overhead_ms), 2)
 
     def finish(self) -> ExecutionMetrics:
-        total_duration = round((time.perf_counter() - self._start_perf) * 1000.0, 2)
+        elapsed_ms = (time.perf_counter() - self._start_perf) * 1000.0
+        total_duration = round(self._prior_duration_ms + elapsed_ms, 2)
         total_tokens_obj = None
         if self.has_tokens:
             total_tokens_obj = TokenUsage(
