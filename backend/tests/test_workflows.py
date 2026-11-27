@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 
@@ -88,7 +89,6 @@ def test_workflow_crud_lifecycle(client: TestClient):
     assert res_after_delete.status_code == 404
 
     # 7. HARD-DELETE WORKFLOW
-    # Create another workflow for hard-delete test
     res_h = client.post("/api/v1/workflows", json=SAMPLE_WORKFLOW_PAYLOAD)
     wf_h_id = res_h.json()["id"]
     res_hard_del = client.delete(f"/api/v1/workflows/{wf_h_id}?hard_delete=true")
@@ -126,6 +126,46 @@ def test_workflow_create_from_canonical_json(client: TestClient):
     assert data["name"] == "Canonical Schema Workflow"
     assert data["version"] == "1.2.0"
     assert len(data["nodes"]) == 2
+
+
+def test_authoritative_uuid_and_canonical_graph_sync(client: TestClient):
+    """Verify backend produces authoritative UUID and synchronizes workflow_json canonical graph."""
+    res = client.post(
+        "/api/v1/workflows",
+        json={"name": "Authoritative UUID Sync", "nodes": [{"id": "n1"}], "edges": []},
+    )
+    assert res.status_code == 201
+    data = res.json()
+    wf_id = data["id"]
+
+    # Verify ID is a valid UUID
+    uuid_obj = uuid.UUID(wf_id)
+    assert uuid_obj.version == 4
+
+    # Verify workflow_json canonical metadata has the authoritative ID
+    assert data["workflow_json"]["metadata"]["id"] == wf_id
+
+    # Update nodes and edges via PUT
+    update_res = client.put(
+        f"/api/v1/workflows/{wf_id}",
+        json={
+            "nodes": [
+                {"id": "n1", "name": "Start"},
+                {"id": "n2", "name": "End"},
+            ],
+            "edges": [{"id": "e1", "source": "n1", "target": "n2"}],
+            "configuration": {"timeoutSeconds": 45},
+        },
+    )
+    assert update_res.status_code == 200
+    updated_data = update_res.json()
+    assert len(updated_data["nodes"]) == 2
+    assert len(updated_data["edges"]) == 1
+    assert updated_data["configuration"]["timeoutSeconds"] == 45
+    # Verify canonical graph kept in sync
+    assert updated_data["workflow_json"]["metadata"]["id"] == wf_id
+    assert len(updated_data["workflow_json"]["nodes"]) == 2
+    assert len(updated_data["workflow_json"]["edges"]) == 1
 
 
 def test_get_nonexistent_workflow_returns_404(client: TestClient):

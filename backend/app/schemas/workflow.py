@@ -61,6 +61,9 @@ class WorkflowBase(BaseModel):
 class WorkflowCreate(WorkflowBase):
     """Schema for creating a workflow."""
 
+    owner_id: Optional[str] = None
+    change_summary: Optional[str] = "Initial workflow creation"
+
     @model_validator(mode="before")
     @classmethod
     def parse_canonical_format(cls, data: Any) -> Any:
@@ -76,6 +79,7 @@ class WorkflowCreate(WorkflowBase):
                     "version": meta.get("version", "1.0.0"),
                     "status": data.get("status", "active"),
                     "tags": meta.get("tags", []),
+                    "owner_id": meta.get("ownerId") or data.get("owner_id", "default-owner"),
                     "configuration": config,
                     "nodes": data.get("nodes", []),
                     "edges": data.get("edges", []),
@@ -97,12 +101,20 @@ class WorkflowUpdate(BaseModel):
     nodes: Optional[List[Dict[str, Any]]] = None
     edges: Optional[List[Dict[str, Any]]] = None
     tags: Optional[List[str]] = None
+    change_summary: Optional[str] = None
+
+    # Stale revision concurrency check
+    base_revision_id: Optional[str] = Field(None, description="Current revision ID before this update")
+    base_revision_number: Optional[int] = Field(None, description="Current revision number before this update")
 
 
 class WorkflowRead(WorkflowBase):
     """Schema for workflow responses."""
 
     id: str
+    owner_id: str = "default-owner"
+    active_revision_id: Optional[str] = None
+    current_revision_number: int = 1
     status: str = "active"
     is_active: bool = True
     created_at: datetime
@@ -122,7 +134,10 @@ class WorkflowRead(WorkflowBase):
                     "description": self.description or "",
                     "version": self.version,
                     "tags": self.tags,
-                    "author": "AgentForge AI",
+                    "author": self.owner_id or "AgentForge AI",
+                    "ownerId": self.owner_id,
+                    "activeRevisionId": self.active_revision_id,
+                    "currentRevisionNumber": self.current_revision_number,
                     "createdAt": self.created_at.isoformat(),
                     "updatedAt": self.updated_at.isoformat(),
                 },
@@ -134,6 +149,86 @@ class WorkflowRead(WorkflowBase):
             }
         return self
 
+
+# -----------------------------------------------------------------------------
+# REVISION SCHEMAS (Phase 4)
+# -----------------------------------------------------------------------------
+
+class WorkflowRevisionRead(BaseModel):
+    id: str
+    workflow_id: str
+    revision_number: int
+    version: str
+    snapshot: Dict[str, Any]
+    change_summary: Optional[str] = None
+    created_by: str
+    is_active: bool
+    is_verified: bool
+    last_execution_id: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorkflowRevisionDiffResponse(BaseModel):
+    workflow_id: str
+    source_revision_id: str
+    target_revision_id: str
+    source_revision_number: int
+    target_revision_number: int
+    nodes_added: List[Dict[str, Any]] = Field(default_factory=list)
+    nodes_removed: List[Dict[str, Any]] = Field(default_factory=list)
+    nodes_modified: List[Dict[str, Any]] = Field(default_factory=list)
+    edges_added: List[Dict[str, Any]] = Field(default_factory=list)
+    edges_removed: List[Dict[str, Any]] = Field(default_factory=list)
+    edges_modified: List[Dict[str, Any]] = Field(default_factory=list)
+    configuration_changes: Dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkflowRevisionPromoteRequest(BaseModel):
+    execution_id: Optional[str] = Field(None, description="ID of successful execution validating this revision")
+
+
+class WorkflowRevisionRestoreRequest(BaseModel):
+    change_summary: Optional[str] = Field(None, description="Optional reason or description for restoring revision")
+
+
+# -----------------------------------------------------------------------------
+# RECOVERY SCHEMAS (Phase 5)
+# -----------------------------------------------------------------------------
+
+class WorkflowRecoveryReserveRequest(BaseModel):
+    execution_id: Optional[str] = None
+    idempotency_key: Optional[str] = None
+    error_context: Optional[Dict[str, Any]] = None
+
+
+class WorkflowRecoveryCompleteRequest(BaseModel):
+    status: str = Field(..., pattern="^(completed|failed|cancelled|resolved)$")
+    proposed_patch: Optional[Dict[str, Any]] = None
+
+
+class WorkflowRecoveryRead(BaseModel):
+    id: str
+    workflow_id: str
+    revision_id: Optional[str] = None
+    execution_id: Optional[str] = None
+    attempt_number: int
+    status: str
+    idempotency_key: Optional[str] = None
+    error_context: Optional[Dict[str, Any]] = None
+    proposed_patch: Optional[Dict[str, Any]] = None
+    reserved_at: datetime
+    completed_at: Optional[datetime] = None
+    promoted_at: Optional[datetime] = None
+    rolled_back_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# -----------------------------------------------------------------------------
+# VALIDATION SCHEMAS
+# -----------------------------------------------------------------------------
 
 class WorkflowValidateRequest(BaseModel):
     nodes: List[Dict[str, Any]] = Field(default_factory=list)
@@ -147,8 +242,13 @@ class WorkflowValidateResponse(BaseModel):
     metrics: Dict[str, Any] = Field(default_factory=dict)
 
 
+# -----------------------------------------------------------------------------
+# EXECUTION & TELEMETRY SCHEMAS (Phase 6)
+# -----------------------------------------------------------------------------
+
 class WorkflowExecutionCreate(BaseModel):
     workflow_id: Optional[str] = None
+    revision_id: Optional[str] = None
     status: str = Field(default="pending", pattern="^(pending|running|completed|failed|repaired|PENDING|RUNNING|COMPLETED|FAILED|REPAIRED)$")
     input_data: Optional[Dict[str, Any]] = None
     output_data: Optional[Dict[str, Any]] = None
@@ -157,6 +257,15 @@ class WorkflowExecutionCreate(BaseModel):
     error_message: Optional[str] = None
     execution_duration: Optional[float] = None
     repair_attempts: int = 0
+
+    # Telemetry parameters
+    node_logs: Optional[List[Dict[str, Any]]] = None
+    token_usage: Optional[Dict[str, Any]] = None
+    ai_provider: Optional[str] = None
+    ai_model: Optional[str] = None
+    estimated_cost: Optional[float] = None
+    reliability_report: Optional[Dict[str, Any]] = None
+    repair_report: Optional[Dict[str, Any]] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -185,6 +294,15 @@ class WorkflowExecutionUpdate(BaseModel):
     repair_attempts: Optional[int] = None
     completed_at: Optional[datetime] = None
 
+    # Telemetry updates
+    node_logs: Optional[List[Dict[str, Any]]] = None
+    token_usage: Optional[Dict[str, Any]] = None
+    ai_provider: Optional[str] = None
+    ai_model: Optional[str] = None
+    estimated_cost: Optional[float] = None
+    reliability_report: Optional[Dict[str, Any]] = None
+    repair_report: Optional[Dict[str, Any]] = None
+
     @model_validator(mode="before")
     @classmethod
     def harmonize_outputs(cls, data: Any) -> Any:
@@ -199,6 +317,7 @@ class WorkflowExecutionUpdate(BaseModel):
 class WorkflowExecutionRead(BaseModel):
     id: str
     workflow_id: str
+    revision_id: Optional[str] = None
     status: str
     input_data: Optional[Dict[str, Any]] = None
     output_data: Optional[Dict[str, Any]] = None
@@ -209,6 +328,15 @@ class WorkflowExecutionRead(BaseModel):
     repair_attempts: int
     started_at: datetime
     completed_at: Optional[datetime] = None
+
+    # Telemetry fields
+    node_logs: Optional[List[Dict[str, Any]]] = None
+    token_usage: Optional[Dict[str, Any]] = None
+    ai_provider: Optional[str] = None
+    ai_model: Optional[str] = None
+    estimated_cost: Optional[float] = None
+    reliability_report: Optional[Dict[str, Any]] = None
+    repair_report: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
