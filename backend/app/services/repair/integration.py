@@ -21,12 +21,13 @@ from app.schemas.repair import (
 from app.services.repair.diagnosis import DiagnosisContext, OriginalRequirements
 from app.services.repair.diagnosis_router import DiagnosisOutcome, DiagnosisRouter, DiagnosisStatus
 from app.services.repair.gemini_diagnosis import GeminiDiagnosisProvider, GeminiProvider, ProviderIssue
+from app.services.repair.graph_policy import GraphAuthority
+from app.services.repair.history import HistoryResponse, HistorySource, project
 from app.services.repair.planning import RepairPlanner, ReplacementProvider, ScalarFieldPolicy
 from app.services.repair.recovery_contracts import (
     AttemptReservation,
-    AttemptStatus,
+    AttemptReport,
     DurableAttempts,
-    ProposalReference,
     RecoveryRecorder,
     RecoveryRequest,
     RecoveryResult,
@@ -42,8 +43,9 @@ from app.services.repair.recovery_contracts import (
     context_issue,
 )
 from app.services.repair.service import RequirementsSource
+from app.services.repair.structural import Member5StructuralValidation
 
-RepairAction = Literal["diagnose", "recover"]
+RepairAction = Literal["diagnose", "recover", "history"]
 
 
 class RepairAccess(Protocol):
@@ -96,6 +98,9 @@ class RepairBindings:
     recorder: RecoveryRecorder | None = None
     gemini: GeminiProvider | None = None
     availability: Mapping[Dependency, Availability] = field(default_factory=dict)
+    history: HistorySource | None = None
+    structural: Member5StructuralValidation | None = None
+    graph_authority: GraphAuthority | None = None
 
 
 class RepairReadiness(RepairContract):
@@ -111,16 +116,6 @@ class RequestStatus(StrEnum):
     FORBIDDEN = "forbidden"
     FAILURE_NOT_FOUND = "failure_not_found"
     DUPLICATE_REQUEST = "duplicate_request"
-
-
-class AttemptReport(RepairContract):
-    number: int
-    status: AttemptStatus
-    proposal: ProposalReference
-    candidate: RevisionReference | None = None
-    verification: VerificationResult | None = None
-    verification_status: VerificationStatus
-    explanation: str
 
 
 class RepairResponse(RepairContract):
@@ -142,6 +137,32 @@ class RepairService:
     def __init__(self, bindings: RepairBindings) -> None:
         self._bindings = bindings
 
+    def history(self, scope: RecoveryScope, request: Request, offset: int, limit: int):
+        b = self._bindings
+        if not b.access or self.readiness().dependencies[Dependency.AUTHORIZATION] != Availability.AVAILABLE:
+            return 503, {"status": "history_unavailable"}
+        try:
+            if b.access.allows(request, scope, "history") is not True:
+                return 403, {"status": "forbidden"}
+            if b.history is None:
+                return 503, {"status": "history_unavailable"}
+            page = b.history.read(request, scope, offset, limit + 1)
+            if page is None:
+                return 404, {"status": "failure_not_found"}
+            if page.scope != scope or len(page.records) > limit + 1:
+                raise ValueError("Invalid history page")
+            records = tuple(project(record, scope) for record in page.records)
+            if len({row.recovery_id for row in records}) != len(records):
+                raise ValueError("Duplicate recovery")
+            return 200, HistoryResponse(scope=scope, records=records[:limit],
+                                        next_offset=offset + limit if len(records) > limit else None)
+        except PermissionError:
+            return 403, {"status": "forbidden"}
+        except RevisionConflict:
+            return 409, {"status": "revision_conflict"}
+        except Exception:
+            return 503, {"status": "history_evidence_unavailable"}
+
     def readiness(self) -> RepairReadiness:
         b = self._bindings
         adapters = {
@@ -153,7 +174,7 @@ class RepairService:
             Dependency.ORIGINAL_REQUIREMENTS: b.requirements,
             Dependency.ATTEMPT_RESERVATION: b.attempts,
             Dependency.CANDIDATE_EXECUTION: b.verifier,
-            Dependency.STRUCTURAL_VALIDATION: b.verifier,
+            Dependency.STRUCTURAL_VALIDATION: b.structural or b.verifier,
             Dependency.REGRESSION_VERIFICATION: b.verifier,
             Dependency.REVISION_LIFECYCLE: b.lifecycle,
             Dependency.REPAIR_RECORDING: b.recorder,
@@ -230,7 +251,8 @@ class RepairService:
 
             graph = RecoveryGraph(
                 router, RepairPlanner(b.policies, b.replacements), b.snapshots,
-                verifier=b.verifier, lifecycle=b.lifecycle, recorder=b.recorder,
+                verifier=b.verifier, lifecycle=b.lifecycle, recorder=b.recorder, graph_authority=b.graph_authority,
+                structural=b.structural,
             )
             claim = attempts.begin(scope)
         except RevisionConflict:

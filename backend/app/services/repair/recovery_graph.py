@@ -18,6 +18,7 @@ from app.schemas.repair import (
     VerificationStatus,
 )
 from app.services.repair.diagnosis_router import DiagnosisOutcome, DiagnosisRouter, DiagnosisStatus
+from app.services.repair.graph_policy import GRAPH_CODES, GraphAuthority, GraphPlan, apply, prepare
 from app.services.repair.planning import RepairPlan, RepairPlanner, UnsafeRepair
 from app.services.repair.recovery_contracts import (
     AttemptStatus,
@@ -40,6 +41,7 @@ from app.services.repair.recovery_contracts import (
     context_issue,
 )
 from app.services.repair.service import WorkflowSnapshot
+from app.services.repair.structural import Member5StructuralValidation
 
 RECOVERY_RECURSION_LIMIT = 32
 
@@ -71,8 +73,8 @@ class _RunData:
     request: RecoveryRequest
     reserve: Callable[[int], AttemptReservation] | None = None
     snapshot: WorkflowSnapshot | None = None
-    plan: RepairPlan | None = None
-    attempted_plans: list[RepairPlan] = field(default_factory=list)
+    plan: RepairPlan | GraphPlan | None = None
+    attempted_plans: list[RepairPlan | GraphPlan] = field(default_factory=list)
     candidate: WorkflowSnapshot | None = None
     baseline: VerificationBaseline | None = None
     evidence: CandidateEvidence | None = None
@@ -88,9 +90,13 @@ class RecoveryGraph:
         verifier: RecoveryVerification | None = None,
         lifecycle: RevisionLifecycle | None = None,
         recorder: RecoveryRecorder | None = None,
+        structural: Member5StructuralValidation | None = None,
+        graph_authority: GraphAuthority | None = None,
     ) -> None:
         self._router = router
         self._planner = planner
+        self._structural = structural
+        self._graph_authority = graph_authority
         self._snapshots = snapshots
         self._verifier = verifier
         self._lifecycle = lifecycle
@@ -215,17 +221,29 @@ class RecoveryGraph:
         request = data.request
         diagnosis = state["diagnosis"].deterministic
         try:
+            if request.failure.error_code in GRAPH_CODES:
+                if self._graph_authority is None:
+                    return _finish(RecoveryStatus.HUMAN_REVIEW, "An approved connection policy is unavailable.")
+                plan = prepare(self._graph_authority, request.failure, request.context.affected_connection_id, data.snapshot)
+                if any(isinstance(old, GraphPlan) and old.candidate_digest == plan.candidate_digest for old in data.attempted_plans):
+                    return _stop_retrying(RetryStopReason.NO_SAFE_ALTERNATIVE)
+                data.plan = plan
+                p = plan.permit
+                return {"proposal": ProposalReference(p.failed_node_id, p.edge_id, p.operation, p.source_revision_id),
+                        "route": "reserve_attempt"}
             plan = self._planner.plan(request.failure, diagnosis, request.context, data.snapshot)
         except UnsafeRepair:
             if state["attempt_count"]:
                 return _stop_retrying(RetryStopReason.NO_SAFE_ALTERNATIVE)
+            if request.failure.error_code in GRAPH_CODES:
+                return _finish(RecoveryStatus.HUMAN_REVIEW, "No authorized graph restoration could be established.")
             return _finish(RecoveryStatus.PLAN_BLOCKED, "No safe proposal or trusted replacement could be established.")
         except Exception:
             return _finish(RecoveryStatus.PLAN_BLOCKED, "The repair planner could not safely produce a proposal.")
 
         replacement = plan.proposal.proposed_value
         if any(
-            previous.target == plan.target
+            isinstance(previous, RepairPlan) and previous.target == plan.target
             and type(previous.proposal.proposed_value) is type(replacement)
             and previous.proposal.proposed_value == replacement
             for previous in data.attempted_plans
@@ -271,11 +289,15 @@ class RecoveryGraph:
         data = runtime.context
         request = data.request
         try:
-            candidate = self._planner.apply(
-                data.plan, request.failure, state["diagnosis"].deterministic, request.context, data.snapshot,
-            )
+            if isinstance(data.plan, GraphPlan):
+                graph = apply(self._graph_authority, data.plan, request.failure, request.context.affected_connection_id, data.snapshot)
+            else:
+                candidate = self._planner.apply(
+                    data.plan, request.failure, state["diagnosis"].deterministic, request.context, data.snapshot,
+                )
+                graph = candidate.graph
             snapshot = WorkflowSnapshot(
-                state["original"].workflow_id, str(uuid4()), json.dumps(candidate.graph, allow_nan=False),
+                state["original"].workflow_id, str(uuid4()), json.dumps(graph, allow_nan=False),
             )
         except Exception:
             reason = "Candidate application failed or its safety preconditions changed."
@@ -299,6 +321,16 @@ class RecoveryGraph:
                 if not _baseline_matches(baseline, data.request):
                     return {}
                 data.baseline = baseline
+            if self._structural is not None:
+                checked = self._structural.check(data.candidate)
+                if checked == VerificationStatus.FAILED:
+                    data.evidence = CandidateEvidence(original.workflow_id, data.baseline, VerificationResult(
+                        candidate_revision_id=data.candidate.revision_id, structural_validation=checked,
+                        required_failed_test_ids=tuple(t.test_id for t in data.baseline.failed_tests),
+                        required_regression_test_ids=tuple(t.test_id for t in data.baseline.regression_tests),
+                    ))
+                if checked != VerificationStatus.PASSED:
+                    return {}
             data.evidence = self._verifier.verify(data.candidate, data.baseline)
         except Exception:
             return {}

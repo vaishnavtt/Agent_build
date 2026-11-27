@@ -18,6 +18,8 @@ from app.services.repair.diagnosis import (
     OriginalRequirements,
 )
 from app.services.repair.gemini_diagnosis import ProviderIssue, ProviderReply
+from app.services.repair.graph_policy import GraphPermit, PortPair, fingerprint
+from app.services.repair.history import HistoryPage, StoredRecovery
 from app.services.repair.integration import RepairBindings, RepairService
 from app.services.repair.planning import (
     ConfigurationLayout,
@@ -42,8 +44,9 @@ from app.services.repair.service import WorkflowSnapshot
 class DemoTeam:
     """In-memory examples of the interfaces. This class is never wired into the API."""
 
-    def __init__(self, *, error: DiagnosticCode = DiagnosticCode.MISSING_REQUIRED_CONFIGURATION, regression: bool = False):
-        self.scope = RecoveryScope(workflow_id="demo-workflow", workflow_revision_id="demo-original", execution_run_id="demo-run")
+    def __init__(self, *, error: DiagnosticCode = DiagnosticCode.MISSING_REQUIRED_CONFIGURATION, regression: bool = False,
+                 workflow_id: str = "demo-workflow"):
+        self.scope = RecoveryScope(workflow_id=workflow_id, workflow_revision_id="demo-original", execution_run_id="demo-run")
         graph = {"nodes": [{"id": "output", "type": "Output", "config": {}}], "edges": []}
         working = {"nodes": [{"id": "output", "type": "Output", "config": {"outputFormat": "json"}}], "edges": []}
         self.original = WorkflowSnapshot(self.scope.workflow_id, self.scope.workflow_revision_id, json.dumps(graph))
@@ -161,6 +164,78 @@ class DemoTeam:
         return ProviderReply(issue=ProviderIssue.SDK_UNAVAILABLE)
 
 
+class GraphDemo(DemoTeam):
+    """A two-node public text transfer. No provider, database, or external tool."""
+
+    def __init__(self, *, missing=False, workflow_id="demo-workflow"):
+        super().__init__(workflow_id=workflow_id)
+        self.ports = PortPair(source="input", target="output", sourceHandle="text", targetHandle="document")
+        edge = {"id": "transfer", **self.ports.model_dump()}
+        graph = {"nodes": [{"id": "input", "type": "Input", "outputHandles": ["text"]},
+                           {"id": "output", "type": "Output", "inputHandles": ["document"]}],
+                 "edges": [edge], "requirements": ["Transfer public text"], "testCriteria": ["Preserve text"]}
+        self.last_working = replace(self.last_working, graph_json=json.dumps(graph))
+        graph["edges"] = [] if missing else [{**edge, "targetHandle": "unknown"}]
+        self.original = replace(self.original, graph_json=json.dumps(graph))
+        self.active = self.original
+        self.failure = self.failure.model_copy(update={"error_code": "NO_PATH_TO_OUTPUT" if missing else "INVALID_TARGET_HANDLE"})
+        self.context = replace(self.context, configuration_evidence=None, affected_connection_id="transfer")
+        self.permission = GraphPermit(**self.scope.model_dump(), failed_node_id="output", error_code=self.failure.error_code,
+            edge_id="transfer", operation="restore_connection" if missing else "restore_mapping",
+            policy_id="fixture-public-transfer", schema_id="member3-named-handles-v1", fingerprint=fingerprint(graph),
+            source_revision_id=self.last_working.revision_id, ports=self.ports, source_type="string", target_type="string",
+            classification="public_data", verification="structure_execution_failed_and_regression_tests")
+
+    def bindings(self):
+        return replace(super().bindings(), graph_authority=self, history=self)
+
+    def permit(self, failure, edge_id):
+        return self.permission if edge_id == "transfer" and failure == self.failure else None
+
+    def working_snapshot(self, permit):
+        return self.last_working
+
+    def read(self, request, scope, offset, limit):
+        if not self.allows(request, scope, "history"):
+            raise PermissionError
+        records = (StoredRecovery("demo-recovery", self.finished),) if self.finished else ()
+        return HistoryPage(scope, records[offset:offset + limit])
+
+    def verify(self, candidate, baseline):
+        graph = json.loads(candidate.graph_json)
+        edge, = graph["edges"]
+        def transfer(sample):
+            output = {edge["targetHandle"]: {"text": sample}[edge["sourceHandle"]]}
+            return output.get("document")
+        def check(test, sample):
+            return TestVerification(test_id=test.test_id, status="passed" if transfer(sample) == sample else "failed")
+        return CandidateEvidence(candidate.workflow_id, baseline, VerificationResult(
+            candidate_revision_id=candidate.revision_id,
+            structural_validation="passed" if graph == json.loads(self.last_working.graph_json) else "failed",
+            execution=CandidateExecution(run_id="fixture-transfer-run", status="passed"),
+            required_failed_test_ids=("failed-format",), required_regression_test_ids=("regression-shape",),
+            failed_test_reruns=(check(baseline.failed_tests[0], "sample"),),
+            regression_test_reruns=(check(baseline.regression_tests[0], ""),)))
+
+
+def graph_demo():
+    request = Request({"type": "http"})
+    report = {}
+    for name, team in (("missing_connection", GraphDemo(missing=True)), ("mapping", GraphDemo()),
+                       ("unapproved_connection", GraphDemo(missing=True))):
+        bindings = team.bindings()
+        if name == "unapproved_connection":
+            bindings = replace(bindings, graph_authority=None)
+        service = RepairService(bindings)
+        code, outcome = service.run(team.scope, request, "recover")
+        assert code == 200 and outcome.status == ("human_review" if name == "unapproved_connection" else "promoted")
+        report[name] = outcome.status
+        code, page = service.history(team.scope, request, 0, 10)
+        assert code == 200 and page.records[0].status == outcome.status
+        report["history_" + name] = page.records[0].status
+    return report
+
+
 def run_demo() -> dict:
     request = Request({"type": "http", "method": "POST", "path": "/demo"})
     scenarios = {
@@ -185,4 +260,4 @@ def run_demo() -> dict:
 
 if __name__ == "__main__":
     print("Member 6 demonstration · synthetic data and fixture adapters")
-    print(json.dumps(run_demo(), indent=2))
+    print(json.dumps({**run_demo(), **graph_demo()}, indent=2))

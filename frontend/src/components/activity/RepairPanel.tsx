@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { RepairHistory } from './RepairHistory';
 import { Wrench } from 'lucide-react';
 import { ElevatedButton } from '../common/ElevatedButton';
 import {
@@ -14,7 +15,7 @@ const fields = {
 const initialScope = { workflow_id: '', workflow_revision_id: '', execution_run_id: '' };
 const readable = (label: string) => label.replaceAll('_', ' ');
 
-export function RepairPanel() {
+export function RepairPanel({ failedExecution }: { failedExecution?: RepairScope } = {}) {
   const [scope, setScope] = useState<RepairScope>(initialScope);
   const [ready, setReady] = useState<RepairReadiness | null>(null);
   const [outcome, setOutcome] = useState<RepairOutcome | null>(null);
@@ -81,6 +82,8 @@ export function RepairPanel() {
           </>
         ) : !error && <p>Checking repair readiness…</p>}
       </div>
+
+      <RepairHistory scope={failedExecution} />
 
       {ready?.diagnosis_available && (
         <form className="space-y-3" onSubmit={event => { event.preventDefault(); void submit('diagnose'); }}>

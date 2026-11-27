@@ -93,7 +93,7 @@ export function hasVerifiedCandidate(attempt: RepairAttempt | undefined): boolea
   const evidence = attempt?.verification;
   return !!evidence && attempt.status === 'verified' && attempt.verification_status === 'passed'
     && !!attempt.candidate?.revision_id && attempt.candidate.revision_id === evidence.candidate_revision_id
-    && evidence.structural_validation === 'passed' && evidence.execution?.status === 'passed'
+    && !!evidence.execution?.run_id && evidence.structural_validation === 'passed' && evidence.execution?.status === 'passed'
     && allTestsPassed(evidence.required_failed_test_ids, evidence.failed_test_reruns)
     && allTestsPassed(evidence.required_regression_test_ids, evidence.regression_test_reruns);
 }
@@ -124,7 +124,7 @@ const titles: Record<string, string> = {
   graph_error: 'Recovery stopped',
 };
 
-export function outcomeTitle(outcome: RepairOutcome): string {
+export function outcomeTitle(outcome: Pick<RepairOutcome, 'status' | 'attempts' | 'promotion' | 'rollback' | 'restored_revision'>): string {
   if (outcome.status === 'promoted' || outcome.status === 'verified_pending_promotion') {
     if (!hasVerifiedCandidate(outcome.attempts?.at(-1))) return 'Verification evidence unavailable';
     return outcome.status === 'promoted' && outcome.promotion === 'confirmed'

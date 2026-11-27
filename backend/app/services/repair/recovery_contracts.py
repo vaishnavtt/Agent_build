@@ -11,9 +11,11 @@ from app.schemas.repair import (
     RepairOperation,
     RollbackStatus,
     VerificationResult,
+    VerificationStatus,
 )
 from app.services.repair.diagnosis import DiagnosisContext, OriginalRequirements
 from app.services.repair.diagnosis_router import DiagnosisOutcome
+from app.services.repair.graph_policy import GraphOperation
 from app.services.repair.service import WorkflowSnapshot
 
 
@@ -122,8 +124,18 @@ class RevisionReference:
 class ProposalReference:
     node_id: str
     field_name: str
-    operation: RepairOperation
+    operation: RepairOperation | GraphOperation
     source_revision_id: str
+
+
+class AttemptReport(RepairContract):
+    number: int
+    status: AttemptStatus
+    proposal: ProposalReference
+    candidate: RevisionReference | None = None
+    verification: VerificationResult | None = None
+    verification_status: VerificationStatus
+    explanation: str
 
 
 class BaselineTest(RepairContract):

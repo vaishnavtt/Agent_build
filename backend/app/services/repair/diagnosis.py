@@ -32,6 +32,9 @@ class DiagnosticCode(StrEnum):
     AMBIGUOUS_INPUT_MAPPING = "AMBIGUOUS_INPUT_MAPPING"
 
 
+GRAPH_CODES = {"NO_PATH_TO_OUTPUT", "INVALID_CONNECTION", "INVALID_SOURCE_HANDLE", "INVALID_TARGET_HANDLE"}
+
+
 class ExternalDiagnosticFact(StrEnum):
     OUTPUT_SHAPE_MISMATCH = "output_shape_mismatch"
     NODE_EXECUTION_HALTED = "node_execution_halted"
@@ -90,6 +93,7 @@ class DiagnosisContext:
     nodes: tuple[DiagnosticNode, ...]
     configuration_evidence: ConfigurationEvidence | None = None
     external_evidence: ExternalDiagnosisEvidence | None = None
+    affected_connection_id: str | None = None
 
 
 class FailureDiagnoser(Protocol):
@@ -179,6 +183,17 @@ class RuleBasedDiagnoser:
                 node,
                 context.configuration_evidence,
                 instructions_only=code == DiagnosticCode.EMPTY_LLM_INSTRUCTIONS,
+            )
+
+        if code in GRAPH_CODES:
+            identified = bool(node and context.affected_connection_id and not context.configuration_evidence
+                              and code != "INVALID_CONNECTION")
+            return DiagnosisResult(
+                category=FailureCategory.DATA_MAPPING if code.endswith("_HANDLE") else FailureCategory.CONNECTION,
+                affected_node_id=node.node_id if node else None,
+                root_cause="Structural validation identified a connection or port defect.",
+                supporting_evidence=("Matched a published structural validation issue type.",),
+                repairable=identified, requires_human_intervention=not identified,
             )
 
         if classification := _MANUAL_CLASSIFICATIONS.get(code):
