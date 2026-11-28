@@ -1,6 +1,7 @@
 import time
 from typing import Dict, Optional
 from app.schemas.execution import ExecutionMetrics, TokenUsage, ExecutionStatus
+from app.engine.pricing import calculate_estimated_cost_usd
 
 
 class ExecutionPerformanceMonitor:
@@ -35,6 +36,7 @@ class ExecutionPerformanceMonitor:
         self.nodes_failed: int = prior_nodes_failed
         self.failed_node_id: Optional[str] = prior_failed_node_id
         self.reexecution_overhead_ms: Optional[float] = None
+        self.model_used: Optional[str] = None
 
     def start_node(self, node_id: str) -> None:
         self._node_start_times[node_id] = time.perf_counter()
@@ -45,6 +47,7 @@ class ExecutionPerformanceMonitor:
         status: ExecutionStatus,
         api_calls: int = 0,
         token_usage: Optional[TokenUsage] = None,
+        model_name: Optional[str] = None,
     ) -> float:
         start = self._node_start_times.get(node_id, time.perf_counter())
         duration_ms = round((time.perf_counter() - start) * 1000.0, 2)
@@ -59,6 +62,8 @@ class ExecutionPerformanceMonitor:
             self.nodes_skipped += 1
 
         self.total_api_calls += api_calls
+        if model_name:
+            self.model_used = model_name
         if token_usage:
             self.has_tokens = True
             self.prompt_tokens += token_usage.prompt_tokens
@@ -70,15 +75,21 @@ class ExecutionPerformanceMonitor:
     def record_reexecution_overhead(self, overhead_ms: float) -> None:
         self.reexecution_overhead_ms = round(max(0.0, overhead_ms), 2)
 
-    def finish(self) -> ExecutionMetrics:
+    def finish(self, default_model: Optional[str] = None) -> ExecutionMetrics:
         elapsed_ms = (time.perf_counter() - self._start_perf) * 1000.0
         total_duration = round(self._prior_duration_ms + elapsed_ms, 2)
         total_tokens_obj = None
+        estimated_cost: Optional[float] = None
         if self.has_tokens:
             total_tokens_obj = TokenUsage(
                 prompt_tokens=self.prompt_tokens,
                 completion_tokens=self.completion_tokens,
                 total_tokens=self.total_tokens,
+            )
+            estimated_cost = calculate_estimated_cost_usd(
+                self.model_used or default_model,
+                self.prompt_tokens,
+                self.completion_tokens,
             )
 
         return ExecutionMetrics(
@@ -88,6 +99,7 @@ class ExecutionPerformanceMonitor:
             node_durations_ms=self.node_durations_ms,
             total_api_calls=self.total_api_calls,
             total_token_usage=total_tokens_obj,
+            estimated_cost_usd=estimated_cost,
             nodes_executed=self.nodes_executed,
             nodes_skipped=self.nodes_skipped,
             nodes_failed=self.nodes_failed,

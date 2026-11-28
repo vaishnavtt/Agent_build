@@ -175,19 +175,69 @@ stateDiagram-v2
 | `POST` | `/api/v1/executions/{id}/approve` | Approve paused execution and resume exact workflow revision. | Scoped (Atomic) |
 | `POST` | `/api/v1/executions/{id}/reject` | Reject paused execution with reason and terminate run. | Scoped (Atomic) |
 | `POST` | `/api/v1/executions/{id}/cancel` | Cancel pending or paused execution. | Scoped |
+| `POST` | `/api/v1/documents/upload` | Securely upload document (PDF, TXT, JSON, CSV) with magic-byte validation. | Scoped / Auth |
+| `GET` | `/api/v1/documents/{id}` | Inspect uploaded document metadata and sanitized filesystem path. | Scoped / Auth |
 
 ---
 
-## 8. Verification & Test Evidence
+## 8. Document Upload Pipeline & Storage Security
 
-All 37 unit and integration tests execute and pass:
+To support Document Reader nodes with real user documents, Member 4 provides a dedicated, hardened upload endpoint:
+- **Endpoint**: `POST /api/v1/documents/upload` (Multipart form-data)
+- **Validation**:
+  - File extension allowlist: `.pdf`, `.txt`, `.md`, `.json`, `.csv`.
+  - Content header (magic byte) verification: Validates `%PDF-` header for PDF uploads to block disguised executables or malicious payloads.
+  - Maximum upload size enforcement: 25 MB limit with immediate HTTP 413 error if exceeded.
+  - Filename sanitization: Removes path traversal sequences (`..`, `/`, `\`) and assigns a collision-resistant UUID prefix (`doc_{uuid}_{basename}`).
+  - Restricted allowlisted storage: Stored exclusively under `backend/uploads/`, completely isolated from system directories and source code.
+- **Workflow Integration**: Returns `document_id`, `filename`, and `file_path`. The resulting path can be passed directly to Document Reader node inputs or configurations.
+
+---
+
+## 9. Execution Cost Metrics & Gemini Model Pricing
+
+To provide transparent cost metrics without inaccurate flat-rate assumptions, the engine dynamically estimates execution cost based on the specific Gemini model used:
+- **Formula**:
+  $$\text{Estimated Cost} = \left(\frac{\text{Prompt Tokens}}{1,000,000} \times \text{Input Rate}\right) + \left(\frac{\text{Candidate Tokens}}{1,000,000} \times \text{Output Rate}\right)$$
+- **Verified Model Pricing Tiers** (Official Google AI Studio Pricing, ≤128k context tier):
+  - **Gemini 1.5 Pro**: $1.25 / 1M prompt tokens, $5.00 / 1M output tokens.
+  - **Gemini 1.5 Flash**: $0.075 / 1M prompt tokens, $0.30 / 1M output tokens.
+  - **Gemini 1.5 Flash-8B**: $0.0375 / 1M prompt tokens, $0.15 / 1M output tokens.
+  - **Gemini 2.0 Flash**: $0.10 / 1M prompt tokens, $0.40 / 1M output tokens.
+  - **Gemini 1.0 Pro**: $0.50 / 1M prompt tokens, $1.50 / 1M output tokens.
+- **Robustness**: Missing token counts or unknown models are handled safely without raising exceptions, defaulting to standard tiers or returning `None` when token counts are absent. All metrics are explicitly labeled as estimated (`estimated_cost_usd`).
+
+---
+
+## 10. Frontend-to-Backend Execution Integration
+
+The frontend execution interface (`WorkflowContext.tsx`) provides real full-stack integration:
+- **Live Mode Execution**: When connected to the FastAPI backend (`backendStatus === 'connected'`), `runAgentExecution` issues a real HTTP `POST /api/v1/executions/run` request with the visual workflow topology and input payloads.
+- **Node State Tracking**: Real-time response payload maps individual node execution statuses (`SUCCESS`, `RUNNING`, `FAILED`, `WAITING_FOR_APPROVAL`, `SKIPPED`) directly into canvas node styling, status badges, and duration metrics.
+- **Interactive Human-in-the-Loop Controls**: When an execution enters `WAITING_FOR_APPROVAL`, the interface presents active approval and rejection buttons calling `POST /api/v1/executions/{id}/approve` and `POST /api/v1/executions/{id}/reject`.
+- **Demo Mode Fallback**: When backend services are offline, the frontend falls back to a simulated execution pipeline clearly labeled as `Simulated In-Browser Demo (Backend Offline)`.
+
+---
+
+## 11. Cross-Member Integration Verification
+
+Comprehensive test suite (`test_team_integrations.py`) verifies seamless interoperability:
+- **Member 3 (Graph Generator)**: Validated against 5 canonical scenarios: simple linear, conditional branching, multi-branch joins, human approval pause/resume, and tool chain pipelines.
+- **Member 5 (Reliability Lab)**: Validated `Member4WorkflowExecutor` conforming to Member 5's `ExecutionResult` interface (`status`, `output_data`, `execution_trace`, `duration_ms`, `metrics`).
+- **Member 6 (Self-Repair)**: Validated `Member4RepairIntegrationAdapter.get_failure_evidence()` producing structured `FailureInformation` and `DiagnosisContext` conforming to Member 6 contracts.
+
+---
+
+## 12. Verification & Test Evidence
+
+All 55 unit and integration tests execute and pass:
 ```
 backend/.venv/Scripts/python.exe -m pytest -v
-======================== 37 passed, 1 warning in 3.15s ========================
+======================== 55 passed, 1 warning in 2.89s ========================
 ```
 
 Frontend production build verifies TypeScript typing and bundle generation:
 ```
-npm run build
-✓ built in 21.80s
+cd frontend && npm run build
+✓ built in 2.08s
 ```

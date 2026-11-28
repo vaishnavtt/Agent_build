@@ -44,6 +44,10 @@ class ExecutionMetrics(BaseModel):
     node_durations_ms: Dict[str, float] = Field(default_factory=dict)
     total_api_calls: int = 0
     total_token_usage: Optional[TokenUsage] = None
+    estimated_cost_usd: Optional[float] = Field(
+        default=None,
+        description="Estimated execution cost in USD based on provider model rates. Labeled as estimated.",
+    )
     nodes_executed: int = 0
     nodes_skipped: int = 0
     nodes_failed: int = 0

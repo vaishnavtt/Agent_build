@@ -68,7 +68,18 @@ async def tool_calculator(params: Dict[str, Any], context: Any) -> Dict[str, Any
 
 
 async def tool_text_formatter(params: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    text = str(params.get("text", params.get("input", "")))
+    text_val = params.get("text")
+    if text_val is None:
+        text_val = params.get("input")
+    if text_val is None:
+        text_val = params.get("result")
+    if text_val is None:
+        text_val = params.get("formatted")
+    if text_val is None and isinstance(params.get("output"), (str, int, float)):
+        text_val = params.get("output")
+    elif text_val is None and isinstance(params.get("output"), dict):
+        text_val = params["output"].get("result", params["output"].get("formatted", params["output"].get("text", "")))
+    text = str(text_val if text_val is not None else "")
     operation = str(params.get("operation", "upper")).lower()
 
     if operation == "upper":

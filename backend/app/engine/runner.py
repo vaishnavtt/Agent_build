@@ -152,11 +152,17 @@ class WorkflowExecutionEngine:
                         handler = get_handler_for_node(node_type)
                         node_output = await handler.execute(node, incoming_data, context)
 
+                        model_name = (
+                            node_output.get("model")
+                            if isinstance(node_output, dict)
+                            else None
+                        )
                         duration_ms = perf_monitor.end_node(
                             node_id,
                             ExecutionStatus.SUCCESS,
                             api_calls=handler.api_calls_made,
                             token_usage=handler.token_usage,
+                            model_name=model_name,
                         )
 
                         context.node_outputs[node_id] = node_output

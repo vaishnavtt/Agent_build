@@ -105,6 +105,8 @@ interface WorkflowContextType {
   currentExecution: ExecutionRecord | null;
   runAgentExecution: () => Promise<void>;
   isExecuting: boolean;
+  approveCurrentExecution?: (comment?: string) => Promise<void>;
+  rejectCurrentExecution?: (comment?: string) => Promise<void>;
   repairState: AutoRepairState;
   repairReport: RepairReport | null;
   triggerFailureScenario: () => void;
@@ -672,12 +674,148 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     showToast('Tests Completed', 'All test scenarios passed successfully with 100% requirement coverage.', 'success');
   }, [testCases.length, showToast]);
 
-  // Live Agent Execution Simulation
+  // Live Agent Execution with real FastAPI backend & labeled Demo Mode fallback
   const runAgentExecution = useCallback(async () => {
     setIsExecuting(true);
     setCurrentPage('activity');
 
-    const execId = `exec-${Math.floor(1000 + Math.random() * 9000)}`;
+    // 1. Live FastAPI Backend Execution when connected
+    if (backendStatus === 'connected') {
+      try {
+        const payload = {
+          workflow: {
+            id: activeAgentName.toLowerCase().replace(/[^a-z0-9_-]/g, '-'),
+            name: activeAgentName,
+            version: '1.0.0',
+            nodes: nodes.map((node) => {
+              const d = (node.data || {}) as any;
+              return {
+                id: node.id,
+                type: d.componentType || node.type || 'Unknown',
+                name: d.label || node.id,
+                config: d.config || {},
+                position: node.position,
+              };
+            }),
+            edges: edges.map((e) => ({
+              id: e.id,
+              source: e.source,
+              target: e.target,
+              sourceHandle: e.sourceHandle || undefined,
+              targetHandle: e.targetHandle || undefined,
+            })),
+            configuration: {
+              timeoutSeconds: 300,
+              collectMetrics: true,
+            },
+          },
+          inputs: {},
+        };
+
+        let res: Response | null = null;
+        try {
+          res = await fetch('/api/v1/executions/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          res = await fetch('http://localhost:8000/api/v1/executions/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        if (res && res.ok) {
+          const report = await res.json();
+          const isAwaitingApproval = report.status === 'WAITING_FOR_APPROVAL';
+          const isSuccess = report.status === 'SUCCESS';
+
+          const realSteps: ExecutionStep[] = (report.node_logs || []).map((log: any, idx: number) => ({
+            id: `step-${log.node_id}`,
+            stepNumber: idx + 1,
+            componentName: log.node_name || log.node_id,
+            componentType: (log.node_type || 'Unknown') as any,
+            activity:
+              log.status === 'SUCCESS'
+                ? `Completed ${log.node_name} in ${log.duration_ms}ms`
+                : log.status === 'WAITING_FOR_APPROVAL'
+                ? `Paused: Sign-off required on ${log.node_name}`
+                : log.status === 'SKIPPED'
+                ? `Skipped branch step ${log.node_name}`
+                : `Error: ${log.error_message || 'Step failed'}`,
+            status:
+              log.status === 'SUCCESS'
+                ? 'completed'
+                : log.status === 'WAITING_FOR_APPROVAL'
+                ? 'waiting'
+                : log.status === 'SKIPPED'
+                ? 'waiting'
+                : 'failed',
+            timestamp: new Date().toLocaleTimeString(),
+            duration: `${log.duration_ms || 0}ms`,
+            details: log.output_summary ? JSON.stringify(log.output_summary) : undefined,
+          }));
+
+          const record: ExecutionRecord = {
+            id: report.execution_id,
+            agentId: 'agent-active',
+            agentName: activeAgentName,
+            startedAt: 'Just now',
+            duration: `${((report.total_duration_ms || 0) / 1000).toFixed(2)}s`,
+            status: isSuccess ? 'completed' : isAwaitingApproval ? 'running' : 'failed',
+            triggerType: 'Live Backend Execution (FastAPI)',
+            steps: realSteps,
+            errorSnippet: report.error_message || undefined,
+          };
+
+          setNodes((nds) =>
+            nds.map((n) => {
+              const matchedLog = (report.node_logs || []).find((l: any) => l.node_id === n.id);
+              if (!matchedLog) return n;
+              const oldData = n.data as unknown as WorkflowNodeData;
+              return {
+                ...n,
+                data: {
+                  ...oldData,
+                  status:
+                    matchedLog.status === 'SUCCESS'
+                      ? 'success'
+                      : matchedLog.status === 'WAITING_FOR_APPROVAL'
+                      ? 'needs-setup'
+                      : matchedLog.status === 'SKIPPED'
+                      ? 'ready'
+                      : 'failed',
+                  errorMessage: matchedLog.error_message || undefined,
+                  executionOutput: matchedLog.output_summary
+                    ? JSON.stringify(matchedLog.output_summary)
+                    : undefined,
+                },
+              };
+            })
+          );
+
+          setCurrentExecution(record);
+          setExecutionHistory((hist) => [record, ...hist]);
+          setIsExecuting(false);
+
+          if (isAwaitingApproval) {
+            showToast('Sign-off Required', `Workflow paused at step "${report.waiting_node_id}". Approval required.`, 'warning');
+          } else if (isSuccess) {
+            showToast('Execution Completed', `Real execution completed successfully in ${((report.total_duration_ms || 0) / 1000).toFixed(2)}s.`, 'success');
+          } else {
+            showToast('Execution Failed', report.error_message || 'Workflow step failed.', 'error');
+          }
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('Backend execution failed, falling back to clearly labeled Demo Mode:', backendErr);
+      }
+    }
+
+    // 2. Simulated Demo Mode (explicitly labeled as simulated)
+    const execId = `exec-demo-${Math.floor(1000 + Math.random() * 9000)}`;
     const steps: ExecutionStep[] = nodes.map((node, i) => {
       const data = node.data as unknown as WorkflowNodeData;
       return {
@@ -685,7 +823,7 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         stepNumber: i + 1,
         componentName: data.label,
         componentType: data.componentType,
-        activity: `Running ${data.label}...`,
+        activity: `[Simulated Demo] Running ${data.label}...`,
         status: 'waiting' as const,
         timestamp: new Date().toLocaleTimeString(),
       };
@@ -698,13 +836,13 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       startedAt: 'Just now',
       duration: '0s',
       status: 'running',
-      triggerType: 'Manual Studio Run',
+      triggerType: 'Simulated In-Browser Demo (Backend Offline)',
       steps,
     };
 
     setCurrentExecution(newExec);
+    showToast('Demo Mode', 'Running in simulated in-browser demo mode.', 'info');
 
-    // Step-by-step pipeline progression
     for (let i = 0; i < steps.length; i++) {
       setNodes((nds) =>
         nds.map((n, idx) => {
@@ -724,19 +862,19 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return {
           ...prev,
           steps: prev.steps.map((st, idx) =>
-            idx === i ? { ...st, status: 'processing', activity: `Processing ${st.componentName}...` } : st
+            idx === i ? { ...st, status: 'processing', activity: `[Demo] Processing ${st.componentName}...` } : st
           ),
         };
       });
 
-      await new Promise((r) => setTimeout(r, 650));
+      await new Promise((r) => setTimeout(r, 500));
 
       setCurrentExecution((prev) => {
         if (!prev) return null;
         return {
           ...prev,
           steps: prev.steps.map((st, idx) =>
-            idx === i ? { ...st, status: 'completed', activity: `Completed ${st.componentName} output verified.` } : st
+            idx === i ? { ...st, status: 'completed', activity: `[Demo] Completed ${st.componentName}.` } : st
           ),
         };
       });
@@ -757,15 +895,69 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const completed: ExecutionRecord = {
         ...prev,
         status: 'completed',
-        duration: '2.8s',
+        duration: '2.5s (Simulated)',
       };
       setExecutionHistory((hist) => [completed, ...hist]);
       return completed;
     });
 
     setIsExecuting(false);
-    showToast('Execution Completed', `"${activeAgentName}" executed successfully in 2.8s`, 'success');
-  }, [nodes, activeAgentName, setNodes, showToast]);
+    showToast('Demo Run Complete', 'Simulated execution completed.', 'success');
+  }, [backendStatus, nodes, edges, activeAgentName, setNodes, showToast]);
+
+  const approveCurrentExecution = useCallback(async (comment?: string) => {
+    if (!currentExecution) return;
+    try {
+      const url = `/api/v1/executions/${currentExecution.id}/approve`;
+      let res: Response | null = null;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment || 'Approved by user via UI' }),
+        });
+      } catch {
+        res = await fetch(`http://localhost:8000${url}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment || 'Approved by user via UI' }),
+        });
+      }
+      if (res && res.ok) {
+        showToast('Approved', 'Workflow resumed and completed successfully.', 'success');
+        setCurrentExecution((prev) => (prev ? { ...prev, status: 'completed' } : null));
+      }
+    } catch (e) {
+      showToast('Approval Failed', String(e), 'error');
+    }
+  }, [currentExecution, showToast]);
+
+  const rejectCurrentExecution = useCallback(async (comment?: string) => {
+    if (!currentExecution) return;
+    try {
+      const url = `/api/v1/executions/${currentExecution.id}/reject`;
+      let res: Response | null = null;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment || 'Rejected by user via UI' }),
+        });
+      } catch {
+        res = await fetch(`http://localhost:8000${url}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment || 'Rejected by user via UI' }),
+        });
+      }
+      if (res && res.ok) {
+        showToast('Rejected', 'Workflow execution terminated.', 'info');
+        setCurrentExecution((prev) => (prev ? { ...prev, status: 'failed' } : null));
+      }
+    } catch (e) {
+      showToast('Rejection Failed', String(e), 'error');
+    }
+  }, [currentExecution, showToast]);
 
   // Trigger Failure Scenario (Step 11 & 12)
   const triggerFailureScenario = useCallback(() => {
@@ -995,6 +1187,8 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         executionHistory,
         currentExecution,
         runAgentExecution,
+        approveCurrentExecution,
+        rejectCurrentExecution,
         isExecuting,
         repairState,
         repairReport,
